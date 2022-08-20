@@ -3,10 +3,12 @@ package fetchreport
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/hasura/go-graphql-client"
 	"golang.org/x/oauth2"
@@ -18,12 +20,23 @@ const (
 	oauthApiUrl   = "https://www.warcraftlogs.com/oauth"
 )
 
+var datastoreClient *datastore.Client
+
 func init() {
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
+	var err error
+	datastoreClient, err = datastore.NewClient(context.Background(), projectID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	functions.HTTP("FetchReport", fetchReport)
 }
 
 // fetchReport is an HTTP Cloud Function.
 func fetchReport(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	code := r.URL.Query().Get("code")
 
 	config := clientcredentials.Config{
 		ClientID:     os.Getenv("WARCRAFTLOGS_CLIENT_ID"),
@@ -46,13 +59,24 @@ func fetchReport(w http.ResponseWriter, r *http.Request) {
 					Data struct {
 						PlayerDetails struct {
 							Tanks []struct {
-								Name string `json:"name"`
+								Name   string `json:"name"`
+								Guid   int64  `json:"guid"`
+								Class  string `json:"type"`
+								Server string `json:"server"`
 							} `json:"tanks"`
 							Dps []struct {
-								Name string `json:"name"`
+								Name   string `json:"name"`
+								Guid   int64  `json:"guid"`
+								Class  string `json:"type"`
+								Server string `json:"server"`
+								Spec   string `json:"icon"`
 							} `json:"dps"`
 							Healers []struct {
-								Name string `json:"name"`
+								Name   string `json:"name"`
+								Guid   int64  `json:"guid"`
+								Class  string `json:"type"`
+								Server string `json:"server"`
+								Spec   string `json:"icon"`
 							} `json:"healers"`
 						} `json:"playerDetails"`
 					} `json:"data"`
@@ -61,10 +85,10 @@ func fetchReport(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	variables := map[string]interface{}{
-		"code": graphql.String(r.URL.Query().Get("code")),
+		"code": graphql.String(code),
 	}
 
-	err := graphqlClient.Query(context.Background(), &query, variables)
+	err := graphqlClient.Query(ctx, &query, variables)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "GraphQL query failed: %v", err.Error())
@@ -73,6 +97,14 @@ func fetchReport(w http.ResponseWriter, r *http.Request) {
 
 	startTime := time.Unix(int64(query.ReportData.Report.StartTime/1000), 0)
 	endTime := time.Unix(int64(query.ReportData.Report.EndTime/1000), 0)
+
+	key := datastore.NameKey("report", code, nil)
+	_, err = datastoreClient.Put(ctx, key, &query.ReportData.Report)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Datastore write failed: %v", err.Error())
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	fmt.Fprintf(w, "Title: %v\n", query.ReportData.Report.Title)
