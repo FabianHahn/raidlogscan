@@ -1,4 +1,4 @@
-package raidlogscan
+package helloworld
 
 import (
 	"fmt"

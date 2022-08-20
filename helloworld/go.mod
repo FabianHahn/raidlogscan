@@ -1,4 +1,4 @@
-module raidlogscan
+module github.com/FabianHahn/raidlogscan/helloworld
 
 go 1.16
 
