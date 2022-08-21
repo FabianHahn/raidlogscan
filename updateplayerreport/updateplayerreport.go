@@ -4,19 +4,27 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	"cloud.google.com/go/datastore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 const (
 	graphqlApiUrl = "https://www.warcraftlogs.com/api/v2/client"
 	oauthApiUrl   = "https://www.warcraftlogs.com/oauth"
 )
+
+type PubSubMessage struct {
+	Attributes map[string]interface{} `json:"attributes"`
+}
+
+type MessagePublishedData struct {
+	Message PubSubMessage
+}
 
 type ReportPlayer struct {
 	Id     int64
@@ -69,27 +77,27 @@ func init() {
 		log.Fatal(err)
 	}
 
-	functions.HTTP("UpdatePlayerReport", updatePlayerReport)
+	functions.CloudEvent("UpdatePlayerReport", updatePlayerReport)
 }
 
 // fetchReport is an HTTP Cloud Function.
-func updatePlayerReport(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	code := r.URL.Query().Get("code")
-	playerId, err := strconv.ParseInt(r.URL.Query().Get("player_id"), 10, 64)
+func updatePlayerReport(ctx context.Context, e event.Event) error {
+	var message MessagePublishedData
+	if err := e.DataAs(&message); err != nil {
+		return fmt.Errorf("Failed to parse event message data: %v", err)
+	}
+
+	code := message.Message.Attributes["code"].(string)
+	playerId, err := strconv.ParseInt(message.Message.Attributes["player_id"].(string), 10, 64)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Player ID conversion failed: %v", err.Error())
-		return
+		return fmt.Errorf("Player ID conversion failed: %v", err.Error())
 	}
 
 	reportKey := datastore.NameKey("report", code, nil)
 	var report Report
 	err = datastoreClient.Get(ctx, reportKey, &report)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Datastore report query failed: %v", err.Error())
-		return
+		return fmt.Errorf("Datastore report query failed: %v", err.Error())
 	}
 
 	var thisReportPlayer *ReportPlayer
@@ -100,17 +108,13 @@ func updatePlayerReport(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if thisReportPlayer == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Player %v not found in report: %+v", playerId, report)
-		return
+		return fmt.Errorf("Player %v not found in report: %+v", playerId, report)
 	}
 
 	playerKey := datastore.IDKey("player", playerId, nil)
 	tx, err := datastoreClient.NewTransaction(ctx)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to create transaction: %v", err.Error())
-		return
+		return fmt.Errorf("Failed to create transaction: %v", err.Error())
 	}
 
 	var player Player
@@ -121,17 +125,14 @@ func updatePlayerReport(w http.ResponseWriter, r *http.Request) {
 		player.Server = thisReportPlayer.Server
 	} else if err != nil {
 		tx.Rollback()
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Datastore get player %v failed: %v", playerKey, err.Error())
-		return
+		return fmt.Errorf("Datastore get player %v failed: %v", playerKey, err.Error())
 	}
 
 	for _, playerReport := range player.Reports {
 		if playerReport.Code == code {
 			tx.Rollback()
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Report %v already reported for player %v", code, playerKey)
-			return
+			log.Printf("Report %v already reported for player %v.\n", code, playerKey)
+			return nil // no error
 		}
 	}
 
@@ -178,18 +179,14 @@ func updatePlayerReport(w http.ResponseWriter, r *http.Request) {
 	_, err = tx.Put(playerKey, &player)
 	if err != nil {
 		tx.Rollback()
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to update player: %v", err.Error())
-		return
+		return fmt.Errorf("Failed to update player: %v", err.Error())
 	}
 
 	_, err = tx.Commit()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to commit transaction: %v", err.Error())
-		return
+		return fmt.Errorf("Failed to commit transaction: %v", err.Error())
 	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-	fmt.Fprintf(w, "%+v", player)
+	log.Printf("Processed report %v for player %v.\n", code, playerKey)
+	return nil
 }

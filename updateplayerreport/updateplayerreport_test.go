@@ -1,9 +1,13 @@
 package updateplayerreport
 
 import (
-	"fmt"
-	"net/http/httptest"
+	"context"
+	"io/ioutil"
+	"log"
+	"os"
 	"testing"
+
+	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 const (
@@ -12,12 +16,36 @@ const (
 )
 
 func TestUpdatePlayerReport(t *testing.T) {
+	r, w, _ := os.Pipe()
+	log.SetOutput(w)
+	originalFlags := log.Flags()
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 
-	req := httptest.NewRequest("GET", fmt.Sprintf("/?code=%v&player_id=%v", testReportCode, testPlayerId), nil)
-	req.Header.Add("Content-Type", "application/json")
+	message := MessagePublishedData{
+		Message: PubSubMessage{
+			Attributes: map[string]interface{}{
+				"code":      testReportCode,
+				"player_id": testPlayerId,
+			},
+		},
+	}
 
-	rr := httptest.NewRecorder()
-	updatePlayerReport(rr, req)
+	e := event.New()
+	e.SetDataContentType("application/json")
+	e.SetData(e.DataContentType(), message)
 
-	t.Log(rr.Body.String())
+	err := updatePlayerReport(context.Background(), e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w.Close()
+	log.SetOutput(os.Stderr)
+	log.SetFlags(originalFlags)
+
+	out, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	t.Log(out)
 }
