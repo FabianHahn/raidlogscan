@@ -85,6 +85,10 @@ func playerStats(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<html>
 <head>
 <style type="text/css">
+a, a:visited, a:hover, a:active {
+	color: inherit;
+}
+
 table {
 	border-collapse: collapse;
 	border: 1px solid black;
@@ -118,6 +122,10 @@ div {
 	fmt.Fprintf(w, "<h2>Coraiders</h2>\n")
 	fmt.Fprintf(w, "<table><tr><th>Name</th><th>Class</th><th>Count</th></tr>\n")
 	for _, playerCoraider := range player.Coraiders {
+		if playerCoraider.Id == playerId {
+			continue
+		}
+
 		fmt.Fprintf(w, "<tr><td><a href=\"?player_id=%v\">%v</a></td><td>%v</td><td>%v</td></tr>\n",
 			playerCoraider.Id,
 			playerCoraider.Name,
