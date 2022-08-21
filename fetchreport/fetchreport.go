@@ -15,7 +15,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/cloudevents/sdk-go/v2/event"
-	"github.com/hasura/go-graphql-client"
+	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -108,7 +108,7 @@ func init() {
 		AuthStyle:    oauth2.AuthStyleInHeader,
 	}
 
-	oauthClient := config.Client(oauth2.NoContext)
+	oauthClient := config.Client(context.Background())
 	graphqlClient = graphql.NewClient(graphqlApiUrl, oauthClient)
 
 	functions.CloudEvent("FetchReport", fetchReport)
@@ -123,7 +123,7 @@ func convertFloatTime(floatTime float64) time.Time {
 func fetchReport(ctx context.Context, e event.Event) error {
 	var message MessagePublishedData
 	if err := e.DataAs(&message); err != nil {
-		return fmt.Errorf("Failed to parse event message data: %v", err)
+		return fmt.Errorf("failed to parse event message data: %v", err)
 	}
 	code := message.Message.Attributes["code"]
 
@@ -134,7 +134,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 		log.Printf("Report %v already processed.\n", code)
 		return nil
 	} else if err != datastore.ErrNoSuchEntity {
-		return fmt.Errorf("Datastore query failed: %v", err.Error())
+		return fmt.Errorf("datastore query for %v failed: %v", code, err.Error())
 	} else {
 		var query ReportQuery
 		variables := map[string]interface{}{
@@ -142,7 +142,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 		}
 		err = graphqlClient.Query(ctx, &query, variables)
 		if err != nil {
-			return fmt.Errorf("GraphQL query failed: %v", err.Error())
+			return fmt.Errorf("GraphQL query for %v failed: %v", code, err.Error())
 		}
 
 		report.Title = string(query.ReportData.Report.Title)
@@ -182,7 +182,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 
 		_, err = datastoreClient.Put(ctx, key, &report)
 		if err != nil {
-			return fmt.Errorf("Datastore write failed: %v", err.Error())
+			return fmt.Errorf("datastore write for %s failed: %v", code, err.Error())
 		}
 
 		var waitGroup sync.WaitGroup
@@ -213,7 +213,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 		waitGroup.Wait()
 
 		if totalErrors > 0 {
-			return fmt.Errorf("%d pubsub writes failedwrite failed", totalErrors)
+			return fmt.Errorf("%d pubsub writes failed", totalErrors)
 		}
 	}
 
