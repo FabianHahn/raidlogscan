@@ -1,22 +1,50 @@
 package fetchreport
 
 import (
-	"fmt"
-	"net/http/httptest"
+	"context"
+	"io/ioutil"
+	"log"
+	"os"
 	"testing"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 const (
 	testReportCode = "xkyT2H6VGM3PqZ1p"
 )
 
-func TestHelloGet(t *testing.T) {
+func TestFetchReport(t *testing.T) {
+	r, w, _ := os.Pipe()
+	log.SetOutput(w)
+	originalFlags := log.Flags()
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 
-	req := httptest.NewRequest("GET", fmt.Sprintf("/?code=%v", testReportCode), nil)
-	req.Header.Add("Content-Type", "application/json")
+	message := MessagePublishedData{
+		Message: pubsub.Message{
+			Attributes: map[string]string{
+				"code": testReportCode,
+			},
+		},
+	}
 
-	rr := httptest.NewRecorder()
-	fetchReport(rr, req)
+	e := event.New()
+	e.SetDataContentType("application/json")
+	e.SetData(e.DataContentType(), message)
 
-	t.Log(rr.Body.String())
+	err := fetchReport(context.Background(), e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w.Close()
+	log.SetOutput(os.Stderr)
+	log.SetFlags(originalFlags)
+
+	out, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	t.Log(string(out))
 }

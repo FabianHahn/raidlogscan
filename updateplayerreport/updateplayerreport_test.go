@@ -47,5 +47,5 @@ func TestUpdatePlayerReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
-	t.Log(out)
+	t.Log(string(out))
 }

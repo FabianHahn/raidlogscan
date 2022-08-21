@@ -5,21 +5,30 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"net/http"
 	"os"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"github.com/cloudevents/sdk-go/v2/event"
 	"github.com/hasura/go-graphql-client"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
 
 const (
-	graphqlApiUrl = "https://www.warcraftlogs.com/api/v2/client"
-	oauthApiUrl   = "https://www.warcraftlogs.com/oauth"
+	graphqlApiUrl       = "https://www.warcraftlogs.com/api/v2/client"
+	oauthApiUrl         = "https://www.warcraftlogs.com/oauth"
+	playerreportTopicId = "playerreport"
 )
+
+type MessagePublishedData struct {
+	Message pubsub.Message
+}
 
 type Player struct {
 	Id     int64
@@ -75,12 +84,18 @@ type ReportQuery struct {
 }
 
 var datastoreClient *datastore.Client
+var pubsubClient *pubsub.Client
 var graphqlClient *graphql.Client
 
 func init() {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	var err error
 	datastoreClient, err = datastore.NewClient(context.Background(), projectID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pubsubClient, err = pubsub.NewClient(context.Background(), projectID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,7 +111,7 @@ func init() {
 	oauthClient := config.Client(oauth2.NoContext)
 	graphqlClient = graphql.NewClient(graphqlApiUrl, oauthClient)
 
-	functions.HTTP("FetchReport", fetchReport)
+	functions.CloudEvent("FetchReport", fetchReport)
 }
 
 func convertFloatTime(floatTime float64) time.Time {
@@ -105,20 +120,21 @@ func convertFloatTime(floatTime float64) time.Time {
 }
 
 // fetchReport is an HTTP Cloud Function.
-func fetchReport(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	code := r.URL.Query().Get("code")
+func fetchReport(ctx context.Context, e event.Event) error {
+	var message MessagePublishedData
+	if err := e.DataAs(&message); err != nil {
+		return fmt.Errorf("Failed to parse event message data: %v", err)
+	}
+	code := message.Message.Attributes["code"]
 
 	key := datastore.NameKey("report", code, nil)
 	var report Report
 	err := datastoreClient.Get(ctx, key, &report)
-	cached := false
 	if err == nil {
-		cached = true
+		log.Printf("Report %v already processed.\n", code)
+		return nil
 	} else if err != datastore.ErrNoSuchEntity {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Datastore query failed: %v", err.Error())
-		return
+		return fmt.Errorf("Datastore query failed: %v", err.Error())
 	} else {
 		var query ReportQuery
 		variables := map[string]interface{}{
@@ -126,9 +142,7 @@ func fetchReport(w http.ResponseWriter, r *http.Request) {
 		}
 		err = graphqlClient.Query(ctx, &query, variables)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "GraphQL query failed: %v", err.Error())
-			return
+			return fmt.Errorf("GraphQL query failed: %v", err.Error())
 		}
 
 		report.Title = string(query.ReportData.Report.Title)
@@ -168,17 +182,41 @@ func fetchReport(w http.ResponseWriter, r *http.Request) {
 
 		_, err = datastoreClient.Put(ctx, key, &report)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Datastore write failed: %v", err.Error())
-			return
+			return fmt.Errorf("Datastore write failed: %v", err.Error())
+		}
+
+		var waitGroup sync.WaitGroup
+		var totalErrors uint64
+		playerreportTopic := pubsubClient.Topic(playerreportTopicId)
+		for _, player := range report.Players {
+			result := playerreportTopic.Publish(ctx, &pubsub.Message{
+				Attributes: map[string]string{
+					"code":      code,
+					"player_id": strconv.FormatInt(player.Id, 10),
+				},
+			})
+
+			waitGroup.Add(1)
+			go func(res *pubsub.PublishResult) {
+				defer waitGroup.Done()
+				// The Get method blocks until a server-generated ID or
+				// an error is returned for the published message.
+				_, err := res.Get(ctx)
+				if err != nil {
+					// Error handling code can be added here.
+					log.Printf("Failed to publish: %v", err)
+					atomic.AddUint64(&totalErrors, 1)
+					return
+				}
+			}(result)
+		}
+		waitGroup.Wait()
+
+		if totalErrors > 0 {
+			return fmt.Errorf("%d pubsub writes failedwrite failed", totalErrors)
 		}
 	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-	fmt.Fprintf(w, "Cached: %v\n", cached)
-	fmt.Fprintf(w, "Title: %v\n", report.Title)
-	fmt.Fprintf(w, "Created Time: %v\n", report.CreatedAt.Format(time.RFC1123))
-	fmt.Fprintf(w, "Start Time: %v\n", report.StartTime.Format(time.RFC1123))
-	fmt.Fprintf(w, "End Time: %v\n", report.EndTime.Format(time.RFC1123))
-	fmt.Fprintf(w, "Player Details:\n%+v", report.Players)
+	log.Printf("Processed report %v.\n", code)
+	return nil
 }
