@@ -84,7 +84,7 @@ func init() {
 func updatePlayerReport(ctx context.Context, e event.Event) error {
 	var message MessagePublishedData
 	if err := e.DataAs(&message); err != nil {
-		return fmt.Errorf("Failed to parse event message data: %v", err)
+		return fmt.Errorf("failed to parse event message data: %v", err)
 	}
 
 	code := message.Message.Attributes["code"].(string)
@@ -97,7 +97,7 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 	var report Report
 	err = datastoreClient.Get(ctx, reportKey, &report)
 	if err != nil {
-		return fmt.Errorf("Datastore report query failed: %v", err.Error())
+		return fmt.Errorf("datastore report query %v failed: %v", code, err.Error())
 	}
 
 	var thisReportPlayer *ReportPlayer
@@ -114,7 +114,7 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 	playerKey := datastore.IDKey("player", playerId, nil)
 	tx, err := datastoreClient.NewTransaction(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to create transaction: %v", err.Error())
+		return fmt.Errorf("failed to create transaction: %v", err.Error())
 	}
 
 	var player Player
@@ -125,13 +125,13 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 		player.Server = thisReportPlayer.Server
 	} else if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("Datastore get player %v failed: %v", playerKey, err.Error())
+		return fmt.Errorf("for update report %v datastore get player %v failed: %v", code, playerId, err.Error())
 	}
 
 	for _, playerReport := range player.Reports {
 		if playerReport.Code == code {
 			tx.Rollback()
-			log.Printf("Report %v already reported for player %v.\n", code, playerKey)
+			log.Printf("Report %v already reported for player %v.\n", code, playerId)
 			return nil // no error
 		}
 	}
@@ -179,14 +179,14 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 	_, err = tx.Put(playerKey, &player)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("Failed to update player: %v", err.Error())
+		return fmt.Errorf("failed to update player when updating report %v for player %v: %v", code, playerId, err.Error())
 	}
 
 	_, err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("Failed to commit transaction: %v", err.Error())
+		return fmt.Errorf("failed to commit transaction updating report %v for player %v: %v", code, playerId, err.Error())
 	}
 
-	log.Printf("Processed report %v for player %v.\n", code, playerKey)
+	log.Printf("Processed report %v for player %v.\n", code, playerId)
 	return nil
 }
