@@ -2,6 +2,7 @@ package fetchreport
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -15,7 +16,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/cloudevents/sdk-go/v2/event"
-	"github.com/hasura/go-graphql-client"
+	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -44,41 +45,47 @@ type Report struct {
 	CreatedAt time.Time
 	StartTime time.Time
 	EndTime   time.Time
+	Zone      string
 	Players   []Player `datastore:",noindex"`
+}
+
+type PlayerDetailsResponse struct {
+	Data struct {
+		PlayerDetails struct {
+			Tanks []struct {
+				Name   string `json:"name"`
+				Guid   int64  `json:"guid"`
+				Class  string `json:"type"`
+				Server string `json:"server"`
+			} `json:"tanks"`
+			Dps []struct {
+				Name   string `json:"name"`
+				Guid   int64  `json:"guid"`
+				Class  string `json:"type"`
+				Server string `json:"server"`
+				Spec   string `json:"icon"`
+			} `json:"dps"`
+			Healers []struct {
+				Name   string `json:"name"`
+				Guid   int64  `json:"guid"`
+				Class  string `json:"type"`
+				Server string `json:"server"`
+				Spec   string `json:"icon"`
+			} `json:"healers"`
+		} `json:"playerDetails"`
+	} `json:"data"`
 }
 
 type ReportQuery struct {
 	ReportData struct {
 		Report struct {
-			Title         graphql.String
-			StartTime     graphql.Float
-			EndTime       graphql.Float
-			PlayerDetails struct {
-				Data struct {
-					PlayerDetails struct {
-						Tanks []struct {
-							Name   string `json:"name"`
-							Guid   int64  `json:"guid"`
-							Class  string `json:"type"`
-							Server string `json:"server"`
-						} `json:"tanks"`
-						Dps []struct {
-							Name   string `json:"name"`
-							Guid   int64  `json:"guid"`
-							Class  string `json:"type"`
-							Server string `json:"server"`
-							Spec   string `json:"icon"`
-						} `json:"dps"`
-						Healers []struct {
-							Name   string `json:"name"`
-							Guid   int64  `json:"guid"`
-							Class  string `json:"type"`
-							Server string `json:"server"`
-							Spec   string `json:"icon"`
-						} `json:"healers"`
-					} `json:"playerDetails"`
-				} `json:"data"`
-			} `scalar:"true" graphql:"playerDetails(endTime: 999999999999)" datastore:",noindex"`
+			Title     graphql.String
+			StartTime graphql.Float
+			EndTime   graphql.Float
+			Zone      struct {
+				Name graphql.String
+			}
+			PlayerDetails json.RawMessage `graphql:"playerDetails(endTime: 999999999999)"`
 		} `graphql:"report(code: $code)"`
 	}
 }
@@ -149,35 +156,41 @@ func fetchReport(ctx context.Context, e event.Event) error {
 		report.CreatedAt = time.Now()
 		report.StartTime = convertFloatTime(float64(query.ReportData.Report.StartTime))
 		report.EndTime = convertFloatTime(float64(query.ReportData.Report.StartTime))
-		for _, player := range query.ReportData.Report.PlayerDetails.Data.PlayerDetails.Tanks {
-			report.Players = append(report.Players, Player{
-				Id:     player.Guid,
-				Name:   player.Name,
-				Class:  player.Class,
-				Server: player.Server,
-				Spec:   "",
-				Role:   "tank",
-			})
-		}
-		for _, player := range query.ReportData.Report.PlayerDetails.Data.PlayerDetails.Dps {
-			report.Players = append(report.Players, Player{
-				Id:     player.Guid,
-				Name:   player.Name,
-				Class:  player.Class,
-				Server: player.Server,
-				Spec:   player.Spec,
-				Role:   "dps",
-			})
-		}
-		for _, player := range query.ReportData.Report.PlayerDetails.Data.PlayerDetails.Healers {
-			report.Players = append(report.Players, Player{
-				Id:     player.Guid,
-				Name:   player.Name,
-				Class:  player.Class,
-				Server: player.Server,
-				Spec:   player.Spec,
-				Role:   "healer",
-			})
+		report.Zone = string(query.ReportData.Report.Zone.Name)
+
+		var playerDetailsResponse PlayerDetailsResponse
+		err = json.Unmarshal(query.ReportData.Report.PlayerDetails, &playerDetailsResponse)
+		if err != nil {
+			for _, player := range playerDetailsResponse.Data.PlayerDetails.Tanks {
+				report.Players = append(report.Players, Player{
+					Id:     player.Guid,
+					Name:   player.Name,
+					Class:  player.Class,
+					Server: player.Server,
+					Spec:   "",
+					Role:   "tank",
+				})
+			}
+			for _, player := range playerDetailsResponse.Data.PlayerDetails.Dps {
+				report.Players = append(report.Players, Player{
+					Id:     player.Guid,
+					Name:   player.Name,
+					Class:  player.Class,
+					Server: player.Server,
+					Spec:   player.Spec,
+					Role:   "dps",
+				})
+			}
+			for _, player := range playerDetailsResponse.Data.PlayerDetails.Healers {
+				report.Players = append(report.Players, Player{
+					Id:     player.Guid,
+					Name:   player.Name,
+					Class:  player.Class,
+					Server: player.Server,
+					Spec:   player.Spec,
+					Role:   "healer",
+				})
+			}
 		}
 
 		_, err = datastoreClient.Put(ctx, key, &report)
