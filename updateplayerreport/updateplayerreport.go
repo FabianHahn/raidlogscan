@@ -105,6 +105,11 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 		return fmt.Errorf("datastore report query %v failed: %v", code, err.Error())
 	}
 
+	if !report.EndTime.After(report.StartTime) {
+		log.Printf("Got empty report %v, not updating player %v.\n", code, playerId)
+		return nil
+	}
+
 	var thisReportPlayer *ReportPlayer
 	for _, player := range report.Players {
 		if player.Id == playerId {
@@ -134,6 +139,12 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 	}
 
 	for _, playerReport := range player.Reports {
+		if !playerReport.EndTime.After(playerReport.StartTime) {
+			log.Printf("Outdated entry for player %v, replacing entry.\n", playerId)
+			player.Reports = []PlayerReport{}
+			player.Coraiders = []PlayerCoraider{}
+			break
+		}
 		if playerReport.Code == code {
 			tx.Rollback()
 			log.Printf("Report %v already reported for player %v.\n", code, playerId)
