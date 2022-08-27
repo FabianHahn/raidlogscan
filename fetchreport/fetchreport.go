@@ -160,7 +160,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 
 		var playerDetailsResponse PlayerDetailsResponse
 		err = json.Unmarshal(query.ReportData.Report.PlayerDetails, &playerDetailsResponse)
-		if err != nil {
+		if err == nil {
 			for _, player := range playerDetailsResponse.Data.PlayerDetails.Tanks {
 				report.Players = append(report.Players, Player{
 					Id:     player.Guid,
