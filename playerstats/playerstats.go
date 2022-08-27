@@ -18,8 +18,11 @@ type PlayerReport struct {
 	Code      string
 	Title     string
 	StartTime time.Time
+	EndTime   time.Time
+	Zone      string
 	Spec      string
 	Role      string
+	Duplicate bool
 }
 
 type PlayerCoraider struct {
@@ -74,9 +77,6 @@ func playerStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sort.SliceStable(player.Reports, func(i int, j int) bool {
-		return player.Reports[i].StartTime.After(player.Reports[j].StartTime)
-	})
 	sort.SliceStable(player.Coraiders, func(i int, j int) bool {
 		return player.Coraiders[i].Count > player.Coraiders[j].Count
 	})
@@ -137,11 +137,16 @@ div {
 	fmt.Fprintf(w, "</div>")
 	fmt.Fprintf(w, "<div class=\"column\">")
 	fmt.Fprintf(w, "<h2>Raids</h2>\n")
-	fmt.Fprintf(w, "<table><tr><th>Date</th><th>Title</th><th>Role</th><th>Spec</th></tr>\n")
+	fmt.Fprintf(w, "<table><tr><th>Date</th><th>Title</th><th>Zone</th><th>Role</th><th>Spec</th></tr>\n")
 	for _, playerReport := range player.Reports {
-		fmt.Fprintf(w, "<tr><td>%v</td><td>%v</td><td>%v</td><td>%v</td></tr>\n",
+		if playerReport.Duplicate {
+			continue
+		}
+
+		fmt.Fprintf(w, "<tr><td>%v</td><td>%v</td><td>%v</td><td>%v</td><td>%v</td></tr>\n",
 			playerReport.StartTime.Format(time.RFC1123),
 			playerReport.Title,
+			playerReport.Zone,
 			playerReport.Role,
 			playerReport.Spec,
 		)
