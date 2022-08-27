@@ -70,6 +70,7 @@ type Player struct {
 	Server    string
 	Reports   []PlayerReport   `datastore:",noindex"`
 	Coraiders []PlayerCoraider `datastore:",noindex"`
+	Version   int64
 }
 
 var datastoreClient *datastore.Client
@@ -138,13 +139,14 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 		return fmt.Errorf("for update report %v datastore get player %v failed: %v", code, playerId, err.Error())
 	}
 
+	if player.Version < 2 {
+		log.Printf("Outdated entry for player %v, replacing entry.\n", playerId)
+		player.Reports = []PlayerReport{}
+		player.Coraiders = []PlayerCoraider{}
+		player.Version = 2
+	}
+
 	for _, playerReport := range player.Reports {
-		if !playerReport.EndTime.After(playerReport.StartTime) {
-			log.Printf("Outdated entry for player %v, replacing entry.\n", playerId)
-			player.Reports = []PlayerReport{}
-			player.Coraiders = []PlayerCoraider{}
-			break
-		}
 		if playerReport.Code == code {
 			tx.Rollback()
 			log.Printf("Report %v already reported for player %v.\n", code, playerId)
@@ -153,13 +155,13 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 	}
 
 	duplicate := false
-	firstLaterStarting := sort.Search(len(player.Reports), func(i int) bool {
-		return player.Reports[i].StartTime.After(report.StartTime)
+	firstEarlierStarting := sort.Search(len(player.Reports), func(i int) bool {
+		return player.Reports[i].StartTime.Before(report.StartTime)
 	})
-	if firstLaterStarting < len(player.Reports) && report.EndTime.After(player.Reports[firstLaterStarting].StartTime) {
+	if firstEarlierStarting < len(player.Reports) && report.StartTime.Before(player.Reports[firstEarlierStarting].EndTime) {
 		duplicate = true
 	}
-	if firstLaterStarting > 0 && report.StartTime.Before(player.Reports[firstLaterStarting-1].EndTime) {
+	if firstEarlierStarting > 0 && report.EndTime.After(player.Reports[firstEarlierStarting-1].StartTime) {
 		duplicate = true
 	}
 

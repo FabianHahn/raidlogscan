@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	testReportCode = "2jqkMzXL37JQaVgA"
+	testReportCode = "q1ZxbNt74DB6zFr2"
 	testPlayerId   = "71133535"
 )
 
