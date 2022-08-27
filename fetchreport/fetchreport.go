@@ -155,7 +155,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 		report.Title = string(query.ReportData.Report.Title)
 		report.CreatedAt = time.Now()
 		report.StartTime = convertFloatTime(float64(query.ReportData.Report.StartTime))
-		report.EndTime = convertFloatTime(float64(query.ReportData.Report.StartTime))
+		report.EndTime = convertFloatTime(float64(query.ReportData.Report.EndTime))
 		report.Zone = string(query.ReportData.Report.Zone.Name)
 
 		var playerDetailsResponse PlayerDetailsResponse
