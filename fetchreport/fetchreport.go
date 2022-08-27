@@ -14,9 +14,9 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"cloud.google.com/go/pubsub"
+	"github.com/FabianHahn/graphql"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/cloudevents/sdk-go/v2/event"
-	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
