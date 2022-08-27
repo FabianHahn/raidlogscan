@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -40,6 +41,7 @@ type Report struct {
 	CreatedAt time.Time
 	StartTime time.Time
 	EndTime   time.Time
+	Zone      string
 	Players   []ReportPlayer `datastore:",noindex"`
 }
 
@@ -47,8 +49,11 @@ type PlayerReport struct {
 	Code      string
 	Title     string
 	StartTime time.Time
+	EndTime   time.Time
+	Zone      string
 	Spec      string
 	Role      string
+	Duplicate bool
 }
 
 type PlayerCoraider struct {
@@ -136,44 +141,63 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 		}
 	}
 
+	duplicate := false
+	firstLaterStarting := sort.Search(len(player.Reports), func(i int) bool {
+		return player.Reports[i].StartTime.After(report.StartTime)
+	})
+	if firstLaterStarting < len(player.Reports) && report.EndTime.After(player.Reports[firstLaterStarting].StartTime) {
+		duplicate = true
+	}
+	if firstLaterStarting > 0 && report.StartTime.Before(player.Reports[firstLaterStarting-1].EndTime) {
+		duplicate = true
+	}
+
 	player.Reports = append(player.Reports, PlayerReport{
 		Code:      code,
 		Title:     report.Title,
 		StartTime: report.StartTime,
+		EndTime:   report.EndTime,
+		Zone:      report.Zone,
 		Spec:      thisReportPlayer.Spec,
 		Role:      thisReportPlayer.Role,
+		Duplicate: duplicate,
+	})
+	sort.SliceStable(player.Reports, func(i int, j int) bool {
+		return player.Reports[i].StartTime.After(player.Reports[j].StartTime)
 	})
 
-	coraiders := map[int64]*PlayerCoraider{}
-	for id := range player.Coraiders {
-		coraider := &player.Coraiders[id]
-		coraiders[coraider.Id] = coraider
-	}
-
-	currentCoraiders := map[int64]struct{}{}
-	for _, reportPlayer := range report.Players {
-		if _, alreadyCounted := currentCoraiders[reportPlayer.Id]; alreadyCounted {
-			continue
+	if !duplicate {
+		coraiders := map[int64]*PlayerCoraider{}
+		for id := range player.Coraiders {
+			coraider := &player.Coraiders[id]
+			coraiders[coraider.Id] = coraider
 		}
 
-		if coraider, ok := coraiders[reportPlayer.Id]; ok {
-			coraider.Count++
-		} else {
-			coraiders[reportPlayer.Id] = &PlayerCoraider{
-				Id:     reportPlayer.Id,
-				Name:   reportPlayer.Name,
-				Class:  reportPlayer.Class,
-				Server: reportPlayer.Server,
-				Count:  1,
+		currentCoraiders := map[int64]struct{}{}
+		for _, reportPlayer := range report.Players {
+			if _, alreadyCounted := currentCoraiders[reportPlayer.Id]; alreadyCounted {
+				continue
 			}
+
+			if coraider, ok := coraiders[reportPlayer.Id]; ok {
+				coraider.Count++
+			} else {
+				coraiders[reportPlayer.Id] = &PlayerCoraider{
+					Id:     reportPlayer.Id,
+					Name:   reportPlayer.Name,
+					Class:  reportPlayer.Class,
+					Server: reportPlayer.Server,
+					Count:  1,
+				}
+			}
+
+			currentCoraiders[reportPlayer.Id] = struct{}{}
 		}
 
-		currentCoraiders[reportPlayer.Id] = struct{}{}
-	}
-
-	player.Coraiders = []PlayerCoraider{}
-	for _, coraider := range coraiders {
-		player.Coraiders = append(player.Coraiders, *coraider)
+		player.Coraiders = []PlayerCoraider{}
+		for _, coraider := range coraiders {
+			player.Coraiders = append(player.Coraiders, *coraider)
+		}
 	}
 
 	_, err = tx.Put(playerKey, &player)
