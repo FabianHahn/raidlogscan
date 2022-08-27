@@ -39,6 +39,7 @@ type Player struct {
 	Server    string
 	Reports   []PlayerReport   `datastore:",noindex"`
 	Coraiders []PlayerCoraider `datastore:",noindex"`
+	Version   int64
 }
 
 var datastoreClient *datastore.Client
@@ -143,8 +144,9 @@ div {
 			continue
 		}
 
-		fmt.Fprintf(w, "<tr><td>%v</td><td>%v</td><td>%v</td><td>%v</td><td>%v</td></tr>\n",
+		fmt.Fprintf(w, "<tr><td>%v</td><td><a href=\"https://classic.warcraftlogs.com/reports/%v\">%v</a></td><td>%v</td><td>%v</td><td>%v</td></tr>\n",
 			playerReport.StartTime.Format(time.RFC1123),
+			playerReport.Code,
 			playerReport.Title,
 			playerReport.Zone,
 			playerReport.Role,
