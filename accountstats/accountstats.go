@@ -221,6 +221,10 @@ div {
 	fmt.Fprintf(w, "<h2>Coraiders</h2>\n")
 	fmt.Fprintf(w, "<table><tr><th>Name</th><th>Count</th></tr>\n")
 	for _, entry := range leaderboard {
+		if entry.Account == accountName {
+			continue
+		}
+
 		if entry.Account == "" {
 			fmt.Fprintf(w, "<tr><td><a href=\"%v?player_id=%v\">%v-%v (%v)</a></td><td>%v</td></tr>\n",
 				playerstatsUrl,
