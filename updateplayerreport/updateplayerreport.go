@@ -7,16 +7,19 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 const (
-	graphqlApiUrl = "https://www.warcraftlogs.com/api/v2/client"
-	oauthApiUrl   = "https://www.warcraftlogs.com/oauth"
+	coraiderAccountClaimTopicId = "coraideraccountclaim"
+	numCoraiderClaimBroadcasts  = 3
 )
 
 type PubSubMessage struct {
@@ -64,21 +67,34 @@ type PlayerCoraider struct {
 	Count  int64
 }
 
+type PlayerCoraiderAccount struct {
+	Name     string
+	PlayerId int64
+}
+
 type Player struct {
-	Name      string
-	Class     string
-	Server    string
-	Reports   []PlayerReport   `datastore:",noindex"`
-	Coraiders []PlayerCoraider `datastore:",noindex"`
-	Version   int64
+	Name             string
+	Class            string
+	Server           string
+	Account          string
+	Reports          []PlayerReport          `datastore:",noindex"`
+	Coraiders        []PlayerCoraider        `datastore:",noindex"`
+	CoraiderAccounts []PlayerCoraiderAccount `datastore:",noindex"`
+	Version          int64
 }
 
 var datastoreClient *datastore.Client
+var pubsubClient *pubsub.Client
 
 func init() {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
 	var err error
 	datastoreClient, err = datastore.NewClient(context.Background(), projectID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pubsubClient, err = pubsub.NewClient(context.Background(), projectID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -179,6 +195,7 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 		return player.Reports[i].StartTime.After(player.Reports[j].StartTime)
 	})
 
+	newCoraiderIds := []int64{}
 	if !duplicate {
 		coraiders := map[int64]*PlayerCoraider{}
 		for id := range player.Coraiders {
@@ -194,6 +211,10 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 
 			if coraider, ok := coraiders[reportPlayer.Id]; ok {
 				coraider.Count++
+
+				if coraider.Count <= numCoraiderClaimBroadcasts {
+					newCoraiderIds = append(newCoraiderIds, reportPlayer.Id)
+				}
 			} else {
 				coraiders[reportPlayer.Id] = &PlayerCoraider{
 					Id:     reportPlayer.Id,
@@ -202,6 +223,7 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 					Server: reportPlayer.Server,
 					Count:  1,
 				}
+				newCoraiderIds = append(newCoraiderIds, reportPlayer.Id)
 			}
 
 			currentCoraiders[reportPlayer.Id] = struct{}{}
@@ -222,6 +244,43 @@ func updatePlayerReport(ctx context.Context, e event.Event) error {
 	_, err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction updating report %v for player %v: %v", code, playerId, err.Error())
+	}
+
+	if player.Account != "" && len(newCoraiderIds) > 0 {
+		var waitGroup sync.WaitGroup
+		var totalErrors uint64
+		coraiderAccountClaimTopic := pubsubClient.Topic(coraiderAccountClaimTopicId)
+		for _, newCoraiderId := range newCoraiderIds {
+			result := coraiderAccountClaimTopic.Publish(ctx, &pubsub.Message{
+				Attributes: map[string]string{
+					"player_id":            strconv.FormatInt(newCoraiderId, 10),
+					"claimed_player_id":    strconv.FormatInt(playerId, 10),
+					"claimed_account_name": player.Account,
+				},
+			})
+
+			waitGroup.Add(1)
+			go func(res *pubsub.PublishResult) {
+				defer waitGroup.Done()
+				// The Get method blocks until a server-generated ID or
+				// an error is returned for the published message.
+				_, err := res.Get(ctx)
+				if err != nil {
+					// Error handling code can be added here.
+					log.Printf("Failed to publish: %v\n", err)
+					atomic.AddUint64(&totalErrors, 1)
+					return
+				}
+			}(result)
+		}
+		waitGroup.Wait()
+
+		if totalErrors > 0 {
+			return fmt.Errorf("failed to update report %v for player %v: %d pubsub writes failed", code, playerId, totalErrors)
+		}
+
+		log.Printf("Processed report %v for player %v and broadcast account to %v new coraiders.\n", code, playerId, len(newCoraiderIds))
+		return nil
 	}
 
 	log.Printf("Processed report %v for player %v.\n", code, playerId)
