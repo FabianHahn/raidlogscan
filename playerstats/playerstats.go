@@ -33,13 +33,20 @@ type PlayerCoraider struct {
 	Count  int64
 }
 
+type PlayerCoraiderAccount struct {
+	Name     string
+	PlayerId int64
+}
+
 type Player struct {
-	Name      string
-	Class     string
-	Server    string
-	Reports   []PlayerReport   `datastore:",noindex"`
-	Coraiders []PlayerCoraider `datastore:",noindex"`
-	Version   int64
+	Name             string
+	Class            string
+	Server           string
+	Account          string
+	Reports          []PlayerReport          `datastore:",noindex"`
+	Coraiders        []PlayerCoraider        `datastore:",noindex"`
+	CoraiderAccounts []PlayerCoraiderAccount `datastore:",noindex"`
+	Version          int64
 }
 
 var datastoreClient *datastore.Client
@@ -118,6 +125,9 @@ div {
 	fmt.Fprintf(w, "<h1>%v</h1>\n", player.Name)
 	fmt.Fprintf(w, "<b>Class</b>: %v<br>\n", player.Class)
 	fmt.Fprintf(w, "<b>Server</b>: %v<br>\n", player.Server)
+	if player.Account != "" {
+		fmt.Fprintf(w, "<b>Account</b>: %v<br>\n", player.Account)
+	}
 	fmt.Fprintf(w, "</div>")
 	fmt.Fprintf(w, "<div class=\"column\">")
 	fmt.Fprintf(w, "<h2>Coraiders</h2>\n")
