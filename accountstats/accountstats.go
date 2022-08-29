@@ -182,6 +182,7 @@ func accountStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	fmt.Fprintf(w, `<html>
 <head>
+<title>#%v - WoW Raid Stats</title>
 <style type="text/css">
 a, a:visited, a:hover, a:active {
 	color: inherit;
@@ -210,7 +211,7 @@ div {
 }
 </style>
 </head>
-<body>`)
+<body>`, accountName)
 	fmt.Fprintf(w, "<div>")
 	fmt.Fprintf(w, "<h1>#%v</h1>\n", accountName)
 	fmt.Fprintf(w, "<b>Raids</b>: %v<br>\n", numRaids)
