@@ -217,7 +217,7 @@ func fetchReport(ctx context.Context, e event.Event) error {
 				_, err := res.Get(ctx)
 				if err != nil {
 					// Error handling code can be added here.
-					log.Printf("Failed to publish: %v", err)
+					log.Printf("Failed to publish: %v\n", err)
 					atomic.AddUint64(&totalErrors, 1)
 					return
 				}
