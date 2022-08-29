@@ -213,7 +213,8 @@ div {
 				entry.Count,
 			)
 		} else if entry.Account != player.Account {
-			fmt.Fprintf(w, "<tr><td><a href=\"?account_name=%v\">#%v</a></td><td>%v</td></tr>\n",
+			fmt.Fprintf(w, "<tr><td><a href=\"%v?account_name=%v\">#%v</a></td><td>%v</td></tr>\n",
+				accountstatsUrl,
 				entry.Account,
 				entry.Account,
 				entry.Count,
