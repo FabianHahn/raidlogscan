@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
@@ -13,7 +14,6 @@ import (
 	"cloud.google.com/go/datastore"
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 const (
@@ -83,6 +83,8 @@ type Player struct {
 
 var datastoreClient *datastore.Client
 var pubsubClient *pubsub.Client
+var playerstatsUrl string
+var accountstatsUrl string
 
 func init() {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
@@ -97,33 +99,52 @@ func init() {
 		log.Fatal(err)
 	}
 
-	functions.CloudEvent("ClaimAccount", claimAccount)
+	playerstatsUrl = os.Getenv("RAIDLOGCOUNT_PLAYERSTATS_URL")
+	accountstatsUrl = os.Getenv("RAIDLOGCOUNT_ACCOUNTSTATS_URL")
+
+	functions.HTTP("ClaimAccount", claimAccount)
 }
 
 // claimAccount is an HTTP Cloud Function.
-func claimAccount(ctx context.Context, e event.Event) error {
-	var message MessagePublishedData
-	if err := e.DataAs(&message); err != nil {
-		return fmt.Errorf("failed to parse event message data: %v", err)
+func claimAccount(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	accountName := r.URL.Query().Get("account_name")
+	playerId, err := strconv.ParseInt(r.URL.Query().Get("player_id"), 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "player ID conversion failed: %v", err.Error())
+		return
 	}
 
-	accountName := message.Message.Attributes["account_name"].(string)
-	playerId, err := strconv.ParseInt(message.Message.Attributes["player_id"].(string), 10, 64)
+	query := datastore.NewQuery("player").FilterField("Name", "=", accountName)
+	count, err := datastoreClient.Count(ctx, query)
 	if err != nil {
-		return fmt.Errorf("player ID conversion failed: %v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "player by name %v lookup failed: %v", accountName, err.Error())
+		return
+	}
+	if count == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "cannot claim account name %v that doesn't correspond to a known character name", accountName)
+		return
 	}
 
 	playerKey := datastore.IDKey("player", playerId, nil)
 	tx, err := datastoreClient.NewTransaction(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create transaction: %v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "failed to create transaction: %v", err.Error())
+		return
 	}
 
 	var player Player
 	err = tx.Get(playerKey, &player)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("for claim account %v datastore get player %v failed: %v", accountName, playerId, err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "for claim account %v datastore get player %v failed: %v", accountName, playerId, err.Error())
+		return
 	}
 
 	player.Account = accountName
@@ -131,12 +152,16 @@ func claimAccount(ctx context.Context, e event.Event) error {
 	_, err = tx.Put(playerKey, &player)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("datastore write claim account %v player %v failed: %v", accountName, playerId, err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "datastore write claim account %v player %v failed: %v", accountName, playerId, err.Error())
+		return
 	}
 
 	_, err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("datastore write claim account %v player %v failed: %v", accountName, playerId, err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "datastore write claim account %v player %v failed: %v", accountName, playerId, err.Error())
+		return
 	}
 
 	var waitGroup sync.WaitGroup
@@ -159,7 +184,8 @@ func claimAccount(ctx context.Context, e event.Event) error {
 			_, err := res.Get(ctx)
 			if err != nil {
 				// Error handling code can be added here.
-				log.Printf("Failed to publish: %v\n", err)
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, "failed to publish: %v\n", err)
 				atomic.AddUint64(&totalErrors, 1)
 				return
 			}
@@ -168,9 +194,20 @@ func claimAccount(ctx context.Context, e event.Event) error {
 	waitGroup.Wait()
 
 	if totalErrors > 0 {
-		return fmt.Errorf("failed to claim account %v player %v: %d pubsub writes failed", accountName, playerId, totalErrors)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "failed to claim account %v player %v: %d pubsub writes failed", accountName, playerId, totalErrors)
+		return
 	}
 
-	log.Printf("Claimed account name %v for player %v.\n", accountName, playerId)
-	return nil
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	fmt.Fprintf(w, "Successfully assigned character <a href=\"%v?player_id=%v\">%v-%v (%v)</a> to player #<a href=\"%v?account_name=%v\">%v</a>.<br>\n",
+		playerstatsUrl,
+		playerId,
+		player.Name,
+		player.Server,
+		player.Class,
+		accountstatsUrl,
+		accountName,
+		accountName,
+	)
 }

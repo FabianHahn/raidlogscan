@@ -1,13 +1,9 @@
 package claimaccount
 
 import (
-	"context"
-	"io/ioutil"
-	"log"
-	"os"
+	"fmt"
+	"net/http/httptest"
 	"testing"
-
-	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 const (
@@ -16,36 +12,11 @@ const (
 )
 
 func TestClaimAccount(t *testing.T) {
-	r, w, _ := os.Pipe()
-	log.SetOutput(w)
-	originalFlags := log.Flags()
-	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
+	req := httptest.NewRequest("GET", fmt.Sprintf("/?account_name=%v&player_id=%v", testAccount, testPlayerId), nil)
+	req.Header.Add("Content-Type", "application/json")
 
-	message := MessagePublishedData{
-		Message: PubSubMessage{
-			Attributes: map[string]interface{}{
-				"account_name": testAccount,
-				"player_id":    testPlayerId,
-			},
-		},
-	}
+	rr := httptest.NewRecorder()
+	claimAccount(rr, req)
 
-	e := event.New()
-	e.SetDataContentType("application/json")
-	e.SetData(e.DataContentType(), message)
-
-	err := claimAccount(context.Background(), e)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w.Close()
-	log.SetOutput(os.Stderr)
-	log.SetFlags(originalFlags)
-
-	out, err := ioutil.ReadAll(r)
-	if err != nil {
-		t.Fatalf("ReadAll: %v", err)
-	}
-	t.Log(string(out))
+	t.Log(rr.Body.String())
 }
