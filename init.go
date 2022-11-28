@@ -40,6 +40,9 @@ func init() {
 	functions.CloudEvent("UpdatePlayerReport", func(ctx context.Context, e google_event.Event) error {
 		return event.UpdatePlayerReport(ctx, e, datastoreClient, pubsubClient)
 	})
+	functions.CloudEvent("FetchUserReports", func(ctx context.Context, e google_event.Event) error {
+		return event.FetchUserReports(ctx, e, pubsubClient, graphqlClient)
+	})
 
 	functions.HTTP("AccountStats", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.AccountStats(w, r, datastoreClient, playerStatsUrl)
@@ -56,5 +59,8 @@ func init() {
 	functions.HTTP("Oauth2Callback", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.Oauth2Callback(w, r, oauth2UserConfig, scanUserReportsUrl,
 			scanCharacterReportsUrl)
+	})
+	functions.HTTP("ScanUserReports", func(w go_http.ResponseWriter, r *go_http.Request) {
+		http.ScanUserReports(w, r, pubsubClient)
 	})
 }
