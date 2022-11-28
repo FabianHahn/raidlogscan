@@ -43,6 +43,9 @@ func init() {
 	functions.CloudEvent("FetchUserReports", func(ctx context.Context, e google_event.Event) error {
 		return event.FetchUserReports(ctx, e, pubsubClient, graphqlClient)
 	})
+	functions.CloudEvent("FetchRecentCharacterReports", func(ctx context.Context, e google_event.Event) error {
+		return event.FetchRecentCharacterReports(ctx, e, pubsubClient, graphqlClient)
+	})
 
 	functions.HTTP("AccountStats", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.AccountStats(w, r, datastoreClient, playerStatsUrl)
@@ -62,5 +65,8 @@ func init() {
 	})
 	functions.HTTP("ScanUserReports", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.ScanUserReports(w, r, pubsubClient)
+	})
+	functions.HTTP("ScanRecentCharacterReports", func(w go_http.ResponseWriter, r *go_http.Request) {
+		http.ScanRecentCharacterReports(w, r, pubsubClient)
 	})
 }
