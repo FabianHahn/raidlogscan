@@ -16,6 +16,7 @@ func AccountStats(
 	r *go_http.Request,
 	datastoreClient *google_datastore.Client,
 	playerStatsUrl string,
+	oauth2LoginUrl string,
 ) {
 	ctx := context.Background()
 
@@ -160,6 +161,7 @@ div {
 	fmt.Fprintf(w, "<h1>#%v</h1>\n", accountName)
 	fmt.Fprintf(w, "<b>Raids</b>: %v<br>\n", numRaids)
 	fmt.Fprintf(w, "<b>Characters</b>: %v<br>\n", len(charactersSlice))
+	fmt.Fprintf(w, "<a href=\"%v\">Log into Warcraft Logs Account</a><br>\n", oauth2LoginUrl)
 
 	fmt.Fprintf(w, "<div class=\"column\">")
 	fmt.Fprintf(w, "<h2>Coraiders</h2>\n")

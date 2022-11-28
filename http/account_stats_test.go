@@ -19,7 +19,8 @@ func TestAccountStats(t *testing.T) {
 	rr := httptest.NewRecorder()
 	datastoreClient := datastore.CreateDatastoreClientOrDie()
 	playerStatsUrl := "http://example.com/playerstats"
-	AccountStats(rr, req, datastoreClient, playerStatsUrl)
+	oauth2LoginUrl := "http://example.com/oauth2login"
+	AccountStats(rr, req, datastoreClient, playerStatsUrl, oauth2LoginUrl)
 
 	t.Log(rr.Body.String())
 }

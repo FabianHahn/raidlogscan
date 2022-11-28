@@ -19,6 +19,7 @@ func init() {
 	accountStatsUrl := os.Getenv("RAIDLOGSCAN_ACCOUNTSTATS_URL")
 	claimAccountUrl := os.Getenv("RAIDLOGSCAN_CLAIMACCOUNT_URL")
 	playerStatsUrl := os.Getenv("RAIDLOGSCAN_PLAYERSTATS_URL")
+	oauth2LoginUrl := os.Getenv("RAIDLOGSCAN_OAUTH2_LOGIN_URL")
 	oauth2RedirectUrl := os.Getenv("RAIDLOGSCAN_OAUTH2_REDIRECT_URL")
 	scanUserReportsUrl := os.Getenv("RAIDLOGSCAN_SCAN_USER_REPORTS_URL")
 	scanCharacterReportsUrl := os.Getenv("RAIDLOGSCAN_SCAN_CHARACTER_REPORTS_URL")
@@ -48,7 +49,7 @@ func init() {
 	})
 
 	functions.HTTP("AccountStats", func(w go_http.ResponseWriter, r *go_http.Request) {
-		http.AccountStats(w, r, datastoreClient, playerStatsUrl)
+		http.AccountStats(w, r, datastoreClient, playerStatsUrl, oauth2LoginUrl)
 	})
 	functions.HTTP("ClaimAccount", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.ClaimAccount(w, r, datastoreClient, pubsubClient, playerStatsUrl, accountStatsUrl)

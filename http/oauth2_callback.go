@@ -2,8 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	go_http "net/http"
 
@@ -16,7 +14,7 @@ func Oauth2Callback(
 	r *go_http.Request,
 	userConfig *go_oauth2.Config,
 	scanUserReportsUrl string,
-	scanCharacterReportsUrl string,
+	scanRecentCharacterReportsUrl string,
 ) {
 	ctx := context.Background()
 
@@ -32,14 +30,6 @@ func Oauth2Callback(
 		fmt.Fprintf(w, "failed oauth2 exchange: %v", err.Error())
 		return
 	}
-
-	serializedToken, err := json.Marshal(token)
-	if err != nil {
-		w.WriteHeader(go_http.StatusInternalServerError)
-		fmt.Fprintf(w, "failed to serialize oauth2 token: %v", err.Error())
-		return
-	}
-	serializedTokenBase64 := base64.StdEncoding.EncodeToString(serializedToken)
 
 	graphqlUserClient := graphql.CreateGraphqlUserClient(userConfig, token)
 	userData, err := graphql.QueryUserData(graphqlUserClient, ctx)
@@ -85,16 +75,15 @@ div {
 	fmt.Fprintf(w, "<div>")
 	fmt.Fprintf(w, "<h1>Warcraft Logs Account</h1>\n")
 	fmt.Fprintf(w, "<b>Account Name</b>: %v<br>\n", userData.Name)
-	fmt.Fprintf(w, "<a href=\"%v?user_id=%v&token=%v\">Scan personal logs</a>\n",
-		scanUserReportsUrl, userData.Id, serializedTokenBase64)
+	fmt.Fprintf(w, "<a href=\"%v?user_id=%v\">Scan personal logs</a>\n", scanUserReportsUrl, userData.Id)
 	fmt.Fprintf(w, "</div>")
 
 	fmt.Fprintf(w, "<div class=\"column\">")
 	fmt.Fprintf(w, "<h2>Characters</h2>\n")
 	fmt.Fprintf(w, "<table><tr><th>Name</th><th>Server</th><th>Scan</th></tr>\n")
 	for _, character := range userData.Characters {
-		fmt.Fprintf(w, "<tr><td>%v</td><td>%v</td><td><a href=\"%v?character_id=%v&token=%v\">Scan recent raids</a></td></tr>\n",
-			character.Name, character.Server, scanCharacterReportsUrl, character.Id, serializedTokenBase64)
+		fmt.Fprintf(w, "<tr><td>%v</td><td>%v</td><td><a href=\"%v?character_id=%v\">Scan recent raids</a></td></tr>\n",
+			character.Name, character.Server, scanRecentCharacterReportsUrl, character.Id)
 	}
 	fmt.Fprintf(w, "</table>\n")
 	fmt.Fprintf(w, "</div>")
