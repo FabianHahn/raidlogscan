@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	graphqlApiUrl = "https://www.warcraftlogs.com/api/v2/client"
-	oauthApiUrl   = "https://www.warcraftlogs.com/oauth"
+	graphqlApiUrl     = "https://classic.warcraftlogs.com/api/v2/client"
+	graphqlUserApiUrl = "https://classic.warcraftlogs.com/api/v2/user"
+	oauthApiUrl       = "https://classic.warcraftlogs.com/oauth"
 )
 
-func CreateGraphqlClientOrDie() *graphql_lib.Client {
+func CreateGraphqlClient() *graphql_lib.Client {
 	config := clientcredentials.Config{
 		ClientID:     os.Getenv("WARCRAFTLOGS_CLIENT_ID"),
 		ClientSecret: os.Getenv("WARCRAFTLOGS_CLIENT_SECRET"),
@@ -25,4 +26,9 @@ func CreateGraphqlClientOrDie() *graphql_lib.Client {
 
 	oauthClient := config.Client(context.Background())
 	return graphql_lib.NewClient(graphqlApiUrl, oauthClient)
+}
+
+func CreateGraphqlUserClient(userConfig *oauth2.Config, token *oauth2.Token) *graphql_lib.Client {
+	oauthClient := userConfig.Client(context.Background(), token)
+	return graphql_lib.NewClient(graphqlUserApiUrl, oauthClient)
 }

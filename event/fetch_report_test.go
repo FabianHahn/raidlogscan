@@ -38,7 +38,7 @@ func TestFetchReport(t *testing.T) {
 
 	datastoreClient := datastore.CreateDatastoreClientOrDie()
 	pubsubClient := pubsub.CreatePubsubClientOrDie()
-	graphqlClient := graphql.CreateGraphqlClientOrDie()
+	graphqlClient := graphql.CreateGraphqlClient()
 	err := FetchReport(context.Background(), e, datastoreClient, pubsubClient, graphqlClient)
 	if err != nil {
 		t.Fatal(err)

@@ -36,7 +36,7 @@ func TestFetchGuildReports(t *testing.T) {
 	e.SetData(e.DataContentType(), message)
 
 	pubsubClient := pubsub.CreatePubsubClientOrDie()
-	graphqlClient := graphql.CreateGraphqlClientOrDie()
+	graphqlClient := graphql.CreateGraphqlClient()
 	err := FetchGuildReports(context.Background(), e, pubsubClient, graphqlClient)
 	if err != nil {
 		t.Fatal(err)
