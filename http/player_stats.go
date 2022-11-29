@@ -6,7 +6,6 @@ import (
 	go_http "net/http"
 	"sort"
 	"strconv"
-	"time"
 
 	google_datastore "cloud.google.com/go/datastore"
 	"github.com/FabianHahn/raidlogscan/datastore"
@@ -16,6 +15,7 @@ import (
 func PlayerStats(
 	w go_http.ResponseWriter,
 	r *go_http.Request,
+	htmlRenderer *html.Renderer,
 	datastoreClient *google_datastore.Client,
 	accountStatsUrl string,
 	claimAccountUrl string,
@@ -70,6 +70,10 @@ func PlayerStats(
 
 	leaderboard := []html.LeaderboardEntry{}
 	for accountName, count := range accountCounts {
+		if accountName == player.Account {
+			continue
+		}
+
 		leaderboard = append(leaderboard, html.LeaderboardEntry{
 			Count:     count,
 			IsAccount: true,
@@ -78,6 +82,10 @@ func PlayerStats(
 	}
 
 	for _, coraider := range coraiders {
+		if coraider.Id == playerId {
+			continue
+		}
+
 		leaderboard = append(leaderboard, html.LeaderboardEntry{
 			Count:     coraider.Count,
 			IsAccount: false,
@@ -94,101 +102,15 @@ func PlayerStats(
 	})
 
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	fmt.Fprintf(w, `<html>
-<head>
-<title>%v-%v (%v) - WoW Raid Stats</title>
-<style type="text/css">
-a, a:visited, a:hover, a:active {
-	color: inherit;
-}
-
-table {
-	border-collapse: collapse;
-	border: 1px solid black;
-}
-
-th {
-	border: 1px solid black;
-	padding: 3px;
-}
-td {
-	border: 1px solid black;
-	padding: 3px;
-}
-
-div {
-	margin: 10px;
-}
-
-.column {
-	float: left;
-}
-</style>
-</head>
-<body>`, player.Name, player.Server, player.Class)
-	fmt.Fprintf(w, "<div>")
-	fmt.Fprintf(w, "<h1>%v</h1>\n", player.Name)
-	fmt.Fprintf(w, "<b>Class</b>: %v<br>\n", player.Class)
-	fmt.Fprintf(w, "<b>Server</b>: %v<br>\n", player.Server)
-	if player.Account != "" {
-		fmt.Fprintf(w, "<b>Account</b>: <a href=\"%v?account_name=%v\">#%v</a><br>\n", accountStatsUrl, player.Account, player.Account)
+	err = htmlRenderer.RenderPlayerStats(
+		w,
+		playerId,
+		player,
+		leaderboard,
+		accountStatsUrl,
+		claimAccountUrl)
+	if err != nil {
+		fmt.Fprintf(w, "failed to render template: %v", err)
+		return
 	}
-
-	fmt.Fprintf(w, "<form action=\"%v\" method=\"get\">", claimAccountUrl)
-	fmt.Fprintf(w, "<input type=\"hidden\" id=\"player_id\" name=\"player_id\" value=\"%v\">", playerId)
-	fmt.Fprintf(w, "<label for=\"account_name\"><b>Change account name:</b></label><br>")
-	fmt.Fprintf(w, "<input type=\"text\" id=\"account_name\" name=\"account_name\">")
-	fmt.Fprintf(w, "&nbsp;<input type=\"submit\" value=\"Change\">")
-	fmt.Fprintf(w, "</form>")
-
-	fmt.Fprintf(w, "</div>")
-
-	fmt.Fprintf(w, "<div class=\"column\">")
-	fmt.Fprintf(w, "<h2>Coraiders</h2>\n")
-	fmt.Fprintf(w, "<table><tr><th>Name</th><th>Count</th></tr>\n")
-	for _, entry := range leaderboard {
-		if entry.Account == "" {
-			if entry.Character.Id == playerId {
-				continue
-			}
-
-			fmt.Fprintf(w, "<tr><td><a href=\"?player_id=%v\">%v-%v (%v)</a></td><td>%v</td></tr>\n",
-				entry.Character.Id,
-				entry.Character.Name,
-				entry.Character.Server,
-				entry.Character.Class,
-				entry.Count,
-			)
-		} else if entry.Account != player.Account {
-			fmt.Fprintf(w, "<tr><td><a href=\"%v?account_name=%v\">#%v</a></td><td>%v</td></tr>\n",
-				accountStatsUrl,
-				entry.Account,
-				entry.Account,
-				entry.Count,
-			)
-		}
-	}
-	fmt.Fprintf(w, "</table>\n")
-	fmt.Fprintf(w, "</div>")
-
-	fmt.Fprintf(w, "<div class=\"column\">")
-	fmt.Fprintf(w, "<h2>Raids</h2>\n")
-	fmt.Fprintf(w, "<table><tr><th>Date</th><th>Title</th><th>Zone</th><th>Role</th><th>Spec</th></tr>\n")
-	for _, playerReport := range player.Reports {
-		if playerReport.Duplicate {
-			continue
-		}
-
-		fmt.Fprintf(w, "<tr><td>%v</td><td><a href=\"https://classic.warcraftlogs.com/reports/%v\">%v</a></td><td>%v</td><td>%v</td><td>%v</td></tr>\n",
-			playerReport.StartTime.Format(time.RFC1123),
-			playerReport.Code,
-			playerReport.Title,
-			playerReport.Zone,
-			playerReport.Role,
-			playerReport.Spec,
-		)
-	}
-	fmt.Fprintf(w, "</table>\n")
-	fmt.Fprintf(w, "</div>")
-	fmt.Fprintf(w, "</body></html>\n")
 }

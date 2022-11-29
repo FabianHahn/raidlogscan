@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/FabianHahn/raidlogscan/datastore"
+	"github.com/FabianHahn/raidlogscan/html"
 )
 
 const (
@@ -18,10 +19,11 @@ func TestPlayerStats(t *testing.T) {
 	req.Header.Add("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
+	htmlRenderer := html.CreateRendererOrDie()
 	datastoreClient := datastore.CreateDatastoreClientOrDie()
 	accountStatsUrl := "http://example.com/accountstats"
 	claimAccountUrl := "http://example.com/claimaccount"
-	PlayerStats(rr, req, datastoreClient, accountStatsUrl, claimAccountUrl)
+	PlayerStats(rr, req, htmlRenderer, datastoreClient, accountStatsUrl, claimAccountUrl)
 
 	t.Log(rr.Body.String())
 }
