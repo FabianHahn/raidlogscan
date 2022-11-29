@@ -8,6 +8,7 @@ import (
 	"github.com/FabianHahn/raidlogscan/datastore"
 	"github.com/FabianHahn/raidlogscan/event"
 	"github.com/FabianHahn/raidlogscan/graphql"
+	"github.com/FabianHahn/raidlogscan/html"
 	"github.com/FabianHahn/raidlogscan/http"
 	"github.com/FabianHahn/raidlogscan/oauth2"
 	"github.com/FabianHahn/raidlogscan/pubsub"
@@ -25,6 +26,7 @@ func init() {
 	scanCharacterReportsUrl := os.Getenv("RAIDLOGSCAN_SCAN_CHARACTER_REPORTS_URL")
 
 	oauth2UserConfig := oauth2.CreateOauth2UserConfig(oauth2RedirectUrl)
+	htmlRenderer := html.CreateRendererOrDie()
 	datastoreClient := datastore.CreateDatastoreClientOrDie()
 	pubsubClient := pubsub.CreatePubsubClientOrDie()
 	graphqlClient := graphql.CreateGraphqlClient()
@@ -49,7 +51,7 @@ func init() {
 	})
 
 	functions.HTTP("AccountStats", func(w go_http.ResponseWriter, r *go_http.Request) {
-		http.AccountStats(w, r, datastoreClient, playerStatsUrl, oauth2LoginUrl)
+		http.AccountStats(w, r, htmlRenderer, datastoreClient, playerStatsUrl, oauth2LoginUrl)
 	})
 	functions.HTTP("ClaimAccount", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.ClaimAccount(w, r, datastoreClient, pubsubClient, playerStatsUrl, accountStatsUrl)

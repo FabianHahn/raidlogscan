@@ -8,12 +8,14 @@ import (
 
 	google_datastore "cloud.google.com/go/datastore"
 	"github.com/FabianHahn/raidlogscan/datastore"
+	"github.com/FabianHahn/raidlogscan/html"
 	"google.golang.org/api/iterator"
 )
 
 func AccountStats(
 	w go_http.ResponseWriter,
 	r *go_http.Request,
+	htmlRenderer *html.Renderer,
 	datastoreClient *google_datastore.Client,
 	playerStatsUrl string,
 	oauth2LoginUrl string,
@@ -101,17 +103,19 @@ func AccountStats(
 		}
 	}
 
-	leaderboard := []LeaderboardEntry{}
+	leaderboard := []html.LeaderboardEntry{}
 	for accountName, count := range accountCounts {
-		leaderboard = append(leaderboard, LeaderboardEntry{
-			Count:   count,
-			Account: accountName,
+		leaderboard = append(leaderboard, html.LeaderboardEntry{
+			Count:     count,
+			IsAccount: true,
+			Account:   accountName,
 		})
 	}
 
 	for _, coraider := range coraiders {
-		leaderboard = append(leaderboard, LeaderboardEntry{
-			Count: coraider.Count,
+		leaderboard = append(leaderboard, html.LeaderboardEntry{
+			Count:     coraider.Count,
+			IsAccount: false,
 			Character: datastore.PlayerCoraider{
 				Id:     coraider.Id,
 				Name:   coraider.Name,
@@ -125,87 +129,16 @@ func AccountStats(
 	})
 
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	fmt.Fprintf(w, `<html>
-<head>
-<title>#%v - WoW Raid Stats</title>
-<style type="text/css">
-a, a:visited, a:hover, a:active {
-	color: inherit;
-}
-
-table {
-	border-collapse: collapse;
-	border: 1px solid black;
-}
-
-th {
-	border: 1px solid black;
-	padding: 3px;
-}
-td {
-	border: 1px solid black;
-	padding: 3px;
-}
-
-div {
-	margin: 10px;
-}
-
-.column {
-	float: left;
-}
-</style>
-</head>
-<body>`, accountName)
-	fmt.Fprintf(w, "<div>")
-	fmt.Fprintf(w, "<h1>#%v</h1>\n", accountName)
-	fmt.Fprintf(w, "<b>Raids</b>: %v<br>\n", numRaids)
-	fmt.Fprintf(w, "<b>Characters</b>: %v<br>\n", len(charactersSlice))
-	fmt.Fprintf(w, "<a href=\"%v\">Log into Warcraft Logs Account</a><br>\n", oauth2LoginUrl)
-
-	fmt.Fprintf(w, "<div class=\"column\">")
-	fmt.Fprintf(w, "<h2>Coraiders</h2>\n")
-	fmt.Fprintf(w, "<table><tr><th>Name</th><th>Count</th></tr>\n")
-	for _, entry := range leaderboard {
-		if entry.Account == accountName {
-			continue
-		}
-
-		if entry.Account == "" {
-			fmt.Fprintf(w, "<tr><td><a href=\"%v?player_id=%v\">%v-%v (%v)</a></td><td>%v</td></tr>\n",
-				playerStatsUrl,
-				entry.Character.Id,
-				entry.Character.Name,
-				entry.Character.Server,
-				entry.Character.Class,
-				entry.Count,
-			)
-		} else {
-			fmt.Fprintf(w, "<tr><td><a href=\"?account_name=%v\">#%v</a></td><td>%v</td></tr>\n",
-				entry.Account,
-				entry.Account,
-				entry.Count,
-			)
-		}
+	err := htmlRenderer.RenderAccountStats(
+		w,
+		accountName,
+		numRaids,
+		charactersSlice,
+		leaderboard,
+		playerStatsUrl,
+		oauth2LoginUrl)
+	if err != nil {
+		fmt.Fprintf(w, "failed to render template: %v", err)
+		return
 	}
-	fmt.Fprintf(w, "</table>\n")
-	fmt.Fprintf(w, "</div>")
-
-	fmt.Fprintf(w, "<div class=\"column\">")
-	fmt.Fprintf(w, "<h2>Characters</h2>\n")
-	fmt.Fprintf(w, "<table><tr><th>Name</th><th>Server</th><th>Class</th><th>Count</th></tr>\n")
-	for _, character := range charactersSlice {
-		fmt.Fprintf(w, "<tr><td><a href=\"%v?player_id=%v\">%v</a></td><td>%v</td><td>%v</td><td>%v</td></tr>\n",
-			playerStatsUrl,
-			character.Id,
-			character.Name,
-			character.Server,
-			character.Class,
-			character.Count,
-		)
-	}
-	fmt.Fprintf(w, "</table>\n")
-	fmt.Fprintf(w, "</div>\n")
-
-	fmt.Fprintf(w, "</body></html>\n")
 }

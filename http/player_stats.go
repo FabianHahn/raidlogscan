@@ -10,6 +10,7 @@ import (
 
 	google_datastore "cloud.google.com/go/datastore"
 	"github.com/FabianHahn/raidlogscan/datastore"
+	"github.com/FabianHahn/raidlogscan/html"
 )
 
 func PlayerStats(
@@ -67,17 +68,19 @@ func PlayerStats(
 		}
 	}
 
-	leaderboard := []LeaderboardEntry{}
+	leaderboard := []html.LeaderboardEntry{}
 	for accountName, count := range accountCounts {
-		leaderboard = append(leaderboard, LeaderboardEntry{
-			Count:   count,
-			Account: accountName,
+		leaderboard = append(leaderboard, html.LeaderboardEntry{
+			Count:     count,
+			IsAccount: true,
+			Account:   accountName,
 		})
 	}
 
 	for _, coraider := range coraiders {
-		leaderboard = append(leaderboard, LeaderboardEntry{
-			Count: coraider.Count,
+		leaderboard = append(leaderboard, html.LeaderboardEntry{
+			Count:     coraider.Count,
+			IsAccount: false,
 			Character: datastore.PlayerCoraider{
 				Id:     coraider.Id,
 				Name:   coraider.Name,
