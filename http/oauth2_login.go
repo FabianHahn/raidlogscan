@@ -1,7 +1,6 @@
 package http
 
 import (
-	"net/http"
 	go_http "net/http"
 
 	"github.com/FabianHahn/raidlogscan/oauth2"
@@ -19,5 +18,5 @@ func Oauth2Login(
 	userConfig *go_oauth2.Config,
 ) {
 	url := userConfig.AuthCodeURL(oauth2.Oauth2State)
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	go_http.Redirect(w, r, url, go_http.StatusTemporaryRedirect)
 }

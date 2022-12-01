@@ -44,7 +44,7 @@ func ParseReportAccountClaimEvent(e event.Event) (ReportAccountClaimEvent, error
 	}, nil
 }
 
-func PublishReportAccountClaimEvent(
+func PublishReportAccountClaimEvents(
 	pubsubClient *google_pubsub.Client,
 	ctx context.Context,
 	claimedPlayerId int64,

@@ -90,6 +90,11 @@ func ClaimAccount(
 		coraiderPlayerIds = append(coraiderPlayerIds, coraider.Id)
 	}
 
+	reportCodes := []string{}
+	for _, report := range player.Reports {
+		reportCodes = append(reportCodes, report.Code)
+	}
+
 	err = pubsub.PublishCoraiderAccountClaimEvents(
 		pubsubClient,
 		ctx,
@@ -99,6 +104,18 @@ func ClaimAccount(
 	if err != nil {
 		w.WriteHeader(go_http.StatusBadRequest)
 		fmt.Fprintf(w, "failed to claim account %v player %v: %v", accountName, playerId, err.Error())
+		return
+	}
+
+	err = pubsub.PublishReportAccountClaimEvents(
+		pubsubClient,
+		ctx,
+		playerId,
+		accountName,
+		reportCodes)
+	if err != nil {
+		w.WriteHeader(go_http.StatusBadRequest)
+		fmt.Fprintf(w, "failed to report claim account %v player %v: %v", accountName, playerId, err.Error())
 		return
 	}
 

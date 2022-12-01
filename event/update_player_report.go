@@ -211,7 +211,7 @@ func UpdatePlayerReport(
 	}
 
 	if player.Account != "" && report.GuildId != 0 {
-		err = pubsub.PublishReportAccountClaimEvent(
+		err = pubsub.PublishReportAccountClaimEvents(
 			pubsubClient,
 			ctx,
 			playerReportEvent.PlayerId,

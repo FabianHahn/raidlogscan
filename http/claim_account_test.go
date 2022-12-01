@@ -11,7 +11,7 @@ import (
 
 const (
 	testClaimAccountName = "Jaythe"
-	testClaimPlayerId    = "38937027"
+	testClaimPlayerId    = "71133535"
 )
 
 func TestClaimAccount(t *testing.T) {
