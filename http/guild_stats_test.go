@@ -10,21 +10,20 @@ import (
 )
 
 const (
-	testStatsPlayerId = "71133535"
+	testStatsGuildId = "635711"
 )
 
-func TestPlayerStats(t *testing.T) {
-
-	req := httptest.NewRequest("GET", fmt.Sprintf("/?player_id=%v", testStatsPlayerId), nil)
+func TestGuildStats(t *testing.T) {
+	req := httptest.NewRequest("GET", fmt.Sprintf("/?guild_id=%v", testStatsGuildId), nil)
 	req.Header.Add("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
 	htmlRenderer := html.CreateRendererOrDie()
 	datastoreClient := datastore.CreateDatastoreClientOrDie()
+	scanGuildReportsUrl := "http://example.com/scanguildreports"
 	accountStatsUrl := "http://example.com/accountstats"
-	guildStatsUrl := "http://example.com/guildstats"
-	claimAccountUrl := "http://example.com/claimaccount"
-	PlayerStats(rr, req, htmlRenderer, datastoreClient, accountStatsUrl, guildStatsUrl, claimAccountUrl)
+	playerStatsUrl := "http://example.com/playerstats"
+	GuildStats(rr, req, htmlRenderer, datastoreClient, scanGuildReportsUrl, accountStatsUrl, playerStatsUrl)
 
 	t.Log(rr.Body.String())
 }

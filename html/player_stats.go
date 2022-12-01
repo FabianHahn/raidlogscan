@@ -65,7 +65,7 @@ const playerStatsHtmlTemplate = `{{define "body"}}
       <td><a href="https://classic.warcraftlogs.com/reports/{{.Code}}">{{.Title}}</a></td>
       <td>
     {{- if ne .GuildId 0}}
-        <a href="https://classic.warcraftlogs.com/guild/id/{{.GuildId}}">{{.GuildName}}</a></td>
+        <a href="{{$.GuildStatsUrl}}?guild_id={{.GuildId}}">{{.GuildName}}</a></td>
     {{- end}}
       </td>
       <td>{{.Zone}}</td>
@@ -84,6 +84,7 @@ func (r *Renderer) RenderPlayerStats(
 	player datastore.Player,
 	leaderboard []LeaderboardEntry,
 	accountStatsUrl string,
+	guildStatsUrl string,
 	claimAccountUrl string,
 ) error {
 	return r.templates[playerStatsTemplateName].ExecuteTemplate(wr, baseDefinitionName, struct {
@@ -93,6 +94,7 @@ func (r *Renderer) RenderPlayerStats(
 		HasAccount      bool
 		Leaderboard     []LeaderboardEntry
 		AccountStatsUrl string
+		GuildStatsUrl   string
 		ClaimAccountUrl string
 	}{
 		Title:           fmt.Sprintf("%v-%v (%v)", player.Name, player.Server, player.Class),
@@ -101,6 +103,7 @@ func (r *Renderer) RenderPlayerStats(
 		HasAccount:      player.Account != "",
 		Leaderboard:     leaderboard,
 		AccountStatsUrl: accountStatsUrl,
+		GuildStatsUrl:   guildStatsUrl,
 		ClaimAccountUrl: claimAccountUrl,
 	})
 }

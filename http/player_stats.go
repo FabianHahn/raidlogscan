@@ -18,6 +18,7 @@ func PlayerStats(
 	htmlRenderer *html.Renderer,
 	datastoreClient *google_datastore.Client,
 	accountStatsUrl string,
+	guildStatsUrl string,
 	claimAccountUrl string,
 ) {
 	ctx := context.Background()
@@ -108,6 +109,7 @@ func PlayerStats(
 		player,
 		leaderboard,
 		accountStatsUrl,
+		guildStatsUrl,
 		claimAccountUrl)
 	if err != nil {
 		fmt.Fprintf(w, "failed to render template: %v", err)

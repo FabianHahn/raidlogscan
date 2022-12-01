@@ -9,6 +9,7 @@ const (
 	baseTemplateName         = "base.html"
 	accountStatsTemplateName = "account_stats.html"
 	playerStatsTemplateName  = "player_stats.html"
+	guildStatsTemplateName   = "guild_stats.html"
 )
 
 type Renderer struct {
@@ -26,6 +27,11 @@ func CreateRendererOrDie() *Renderer {
 		template.Must(
 			template.New(playerStatsTemplateName).
 				Parse(playerStatsHtmlTemplate)).
+			Parse(baseHtmlTemplate))
+	templates[guildStatsTemplateName] = template.Must(
+		template.Must(
+			template.New(guildStatsTemplateName).
+				Parse(guildStatsHtmlTemplate)).
 			Parse(baseHtmlTemplate))
 	return &Renderer{
 		templates: templates,

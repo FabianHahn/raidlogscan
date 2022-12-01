@@ -1,0 +1,6 @@
+indexes:
+- kind: report
+  properties:
+  - name: GuildId
+  - name: StartTime
+    direction: desc
