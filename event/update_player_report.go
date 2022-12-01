@@ -90,76 +90,88 @@ func UpdatePlayerReport(
 		player.Version = 2
 	}
 
-	for _, playerReport := range player.Reports {
+	onlyUpdateReports := false
+	for playerIndex, playerReport := range player.Reports {
 		if playerReport.Code == playerReportEvent.Code {
-			tx.Rollback()
-			log.Printf("Report %v already reported for player %v.\n", playerReportEvent.Code, playerReportEvent.PlayerId)
-			return nil // no error
+			if playerReport.GuildId == report.GuildId && playerReport.GuildName == report.GuildName {
+				tx.Rollback()
+				log.Printf("Report %v already reported for player %v.\n", playerReportEvent.Code, playerReportEvent.PlayerId)
+				return nil // no error
+			}
+
+			// This report's version got updated and we need to fill in the guild ID and name.
+			player.Reports[playerIndex].GuildId = report.GuildId
+			player.Reports[playerIndex].GuildName = report.GuildName
+			onlyUpdateReports = true
 		}
 	}
-
-	duplicate := false
-	firstEarlierStarting := sort.Search(len(player.Reports), func(i int) bool {
-		return player.Reports[i].StartTime.Before(report.StartTime)
-	})
-	if firstEarlierStarting < len(player.Reports) && report.StartTime.Before(player.Reports[firstEarlierStarting].EndTime) {
-		duplicate = true
-	}
-	if firstEarlierStarting > 0 && report.EndTime.After(player.Reports[firstEarlierStarting-1].StartTime) {
-		duplicate = true
-	}
-
-	player.Reports = append(player.Reports, datastore.PlayerReport{
-		Code:      playerReportEvent.Code,
-		Title:     report.Title,
-		StartTime: report.StartTime,
-		EndTime:   report.EndTime,
-		Zone:      report.Zone,
-		Spec:      thisReportPlayer.Spec,
-		Role:      thisReportPlayer.Role,
-		Duplicate: duplicate,
-	})
-	sort.SliceStable(player.Reports, func(i int, j int) bool {
-		return player.Reports[i].StartTime.After(player.Reports[j].StartTime)
-	})
 
 	newCoraiderIds := []int64{}
-	if !duplicate {
-		coraiders := map[int64]*datastore.PlayerCoraider{}
-		for id := range player.Coraiders {
-			coraider := &player.Coraiders[id]
-			coraiders[coraider.Id] = coraider
+	if !onlyUpdateReports {
+		duplicate := false
+		firstEarlierStarting := sort.Search(len(player.Reports), func(i int) bool {
+			return player.Reports[i].StartTime.Before(report.StartTime)
+		})
+		if firstEarlierStarting < len(player.Reports) && report.StartTime.Before(player.Reports[firstEarlierStarting].EndTime) {
+			duplicate = true
+		}
+		if firstEarlierStarting > 0 && report.EndTime.After(player.Reports[firstEarlierStarting-1].StartTime) {
+			duplicate = true
 		}
 
-		currentCoraiders := map[int64]struct{}{}
-		for _, reportPlayer := range report.Players {
-			if _, alreadyCounted := currentCoraiders[reportPlayer.Id]; alreadyCounted {
-				continue
+		player.Reports = append(player.Reports, datastore.PlayerReport{
+			Code:      playerReportEvent.Code,
+			Title:     report.Title,
+			StartTime: report.StartTime,
+			EndTime:   report.EndTime,
+			Zone:      report.Zone,
+			GuildId:   report.GuildId,
+			GuildName: report.GuildName,
+			Spec:      thisReportPlayer.Spec,
+			Role:      thisReportPlayer.Role,
+			Duplicate: duplicate,
+		})
+		sort.SliceStable(player.Reports, func(i int, j int) bool {
+			return player.Reports[i].StartTime.After(player.Reports[j].StartTime)
+		})
+
+		if !duplicate {
+			coraiders := map[int64]*datastore.PlayerCoraider{}
+			for id := range player.Coraiders {
+				coraider := &player.Coraiders[id]
+				coraiders[coraider.Id] = coraider
 			}
 
-			if coraider, ok := coraiders[reportPlayer.Id]; ok {
-				coraider.Count++
+			currentCoraiders := map[int64]struct{}{}
+			for _, reportPlayer := range report.Players {
+				if _, alreadyCounted := currentCoraiders[reportPlayer.Id]; alreadyCounted {
+					continue
+				}
 
-				if coraider.Count <= numCoraiderClaimBroadcasts {
+				if coraider, ok := coraiders[reportPlayer.Id]; ok {
+					coraider.Count++
+
+					if coraider.Count <= numCoraiderClaimBroadcasts {
+						newCoraiderIds = append(newCoraiderIds, reportPlayer.Id)
+					}
+				} else {
+					coraiders[reportPlayer.Id] = &datastore.PlayerCoraider{
+						Id:     reportPlayer.Id,
+						Name:   reportPlayer.Name,
+						Class:  reportPlayer.Class,
+						Server: reportPlayer.Server,
+						Count:  1,
+					}
 					newCoraiderIds = append(newCoraiderIds, reportPlayer.Id)
 				}
-			} else {
-				coraiders[reportPlayer.Id] = &datastore.PlayerCoraider{
-					Id:     reportPlayer.Id,
-					Name:   reportPlayer.Name,
-					Class:  reportPlayer.Class,
-					Server: reportPlayer.Server,
-					Count:  1,
-				}
-				newCoraiderIds = append(newCoraiderIds, reportPlayer.Id)
+
+				currentCoraiders[reportPlayer.Id] = struct{}{}
 			}
 
-			currentCoraiders[reportPlayer.Id] = struct{}{}
-		}
-
-		player.Coraiders = []datastore.PlayerCoraider{}
-		for _, coraider := range coraiders {
-			player.Coraiders = append(player.Coraiders, *coraider)
+			player.Coraiders = []datastore.PlayerCoraider{}
+			for _, coraider := range coraiders {
+				player.Coraiders = append(player.Coraiders, *coraider)
+			}
 		}
 	}
 
@@ -196,14 +208,28 @@ func UpdatePlayerReport(
 				playerReportEvent.PlayerId,
 				err.Error())
 		}
-
-		log.Printf("Processed report %v for player %v and broadcast account to %v new coraiders.\n",
-			playerReportEvent.Code,
-			playerReportEvent.PlayerId,
-			len(newCoraiderIds))
-		return nil
 	}
 
-	log.Printf("Processed report %v for player %v.\n", playerReportEvent.Code, playerReportEvent.PlayerId)
+	if player.Account != "" && report.GuildId != 0 {
+		err = pubsub.PublishReportAccountClaimEvent(
+			pubsubClient,
+			ctx,
+			playerReportEvent.Code,
+			playerReportEvent.PlayerId,
+			player.Account,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to update report %v for player %v: %v",
+				playerReportEvent.Code,
+				playerReportEvent.PlayerId,
+				err.Error())
+		}
+	}
+
+	log.Printf("Processed report %v for player %v and broadcast account to %v new coraiders.\n",
+		playerReportEvent.Code,
+		playerReportEvent.PlayerId,
+		len(newCoraiderIds))
 	return nil
 }

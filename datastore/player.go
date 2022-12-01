@@ -10,6 +10,8 @@ type PlayerReport struct {
 	StartTime time.Time
 	EndTime   time.Time
 	Zone      string
+	GuildId   int32
+	GuildName string
 	Spec      string
 	Role      string
 	Duplicate bool
