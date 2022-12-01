@@ -34,6 +34,9 @@ func init() {
 	functions.CloudEvent("CoraiderAccountClaim", func(ctx context.Context, e google_event.Event) error {
 		return event.CoraiderAccountClaim(ctx, e, datastoreClient)
 	})
+	functions.CloudEvent("ReportAccountClaim", func(ctx context.Context, e google_event.Event) error {
+		return event.ReportAccountClaim(ctx, e, datastoreClient)
+	})
 	functions.CloudEvent("FetchGuildReports", func(ctx context.Context, e google_event.Event) error {
 		return event.FetchGuildReports(ctx, e, pubsubClient, graphqlClient)
 	})

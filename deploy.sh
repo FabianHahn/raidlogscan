@@ -10,6 +10,7 @@ gcloud functions deploy scanuserreports --gen2 --runtime=go116 --region=europe-w
 gcloud functions deploy scanrecentcharacterreports --gen2 --runtime=go116 --region=europe-west2 --source=gs://raidlogscan_sources/source.zip --entry-point=ScanRecentCharacterReports --trigger-http --allow-unauthenticated
 
 gcloud functions deploy coraideraccountclaim --gen2 --runtime=go116 --region=europe-west2 --source=. --entry-point=CoraiderAccountClaim --trigger-topic=coraideraccountclaim
+gcloud functions deploy reportaccountclaim --gen2 --runtime=go116 --region=europe-west2 --source=. --entry-point=ReportAccountClaim --trigger-topic=reportaccountclaim
 gcloud functions deploy fetchguildreports --gen2 --runtime=go116 --region=europe-west2 --source=gs://raidlogscan_sources/source.zip --entry-point=FetchGuildReports --trigger-topic=guildreports
 gcloud functions deploy fetchreport2 --gen2 --runtime=go116 --region=europe-west2 --source=gs://raidlogscan_sources/source.zip --entry-point=FetchReport --trigger-topic=report
 gcloud functions deploy updateplayerreport --gen2 --runtime=go116 --region=europe-west2 --source=gs://raidlogscan_sources/source.zip --entry-point=UpdatePlayerReport --trigger-topic=playerreport
