@@ -53,6 +53,7 @@ const playerStatsHtmlTemplate = `{{define "body"}}
     <tr>
       <th>Date</th>
       <th>Title</th>
+      <th>Guild</th>
       <th>Zone</th>
       <th>Role</th>
       <th>Spec</th>
@@ -62,6 +63,11 @@ const playerStatsHtmlTemplate = `{{define "body"}}
     <tr>
       <td>{{.StartTime.Format "Mon, 02 Jan 2006 15:04:05 MST"}}</td>
       <td><a href="https://classic.warcraftlogs.com/reports/{{.Code}}">{{.Title}}</a></td>
+      <td>
+    {{- if ne .GuildId 0}}
+        <a href="https://classic.warcraftlogs.com/guild/id/{{.GuildId}}">{{.GuildName}}</a></td>
+    {{- end}}
+      </td>
       <td>{{.Zone}}</td>
       <td>{{.Role}}</td>
       <td>{{.Spec}}</td>
