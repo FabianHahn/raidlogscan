@@ -31,7 +31,7 @@ func ScanUserReports(
 		userId)
 	if err != nil {
 		w.WriteHeader(go_http.StatusBadRequest)
-		fmt.Fprintf(w, "failed to publush user reports event %v: %v", userId, err.Error())
+		fmt.Fprintf(w, "failed to publish user reports event %v: %v", userId, err.Error())
 		return
 	}
 

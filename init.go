@@ -77,6 +77,9 @@ func init() {
 	functions.HTTP("ScanUserReports", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.ScanUserReports(w, r, pubsubClient)
 	})
+	functions.HTTP("ScanGuildReports", func(w go_http.ResponseWriter, r *go_http.Request) {
+		http.ScanGuildReports(w, r, datastoreClient, pubsubClient, guildStatsUrl)
+	})
 	functions.HTTP("ScanRecentCharacterReports", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.ScanRecentCharacterReports(w, r, pubsubClient)
 	})
