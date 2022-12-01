@@ -38,6 +38,8 @@ type QueryReportResult struct {
 	StartTime time.Time
 	EndTime   time.Time
 	Zone      string
+	GuildId   int32
+	GuildName string
 	Players   ReportPlayers
 }
 
@@ -54,6 +56,10 @@ type reportQuery struct {
 			StartTime graphql_lib.Float
 			EndTime   graphql_lib.Float
 			Zone      struct {
+				Name graphql_lib.String
+			}
+			Guild struct {
+				Id   graphql_lib.Int
 				Name graphql_lib.String
 			}
 			PlayerDetails json.RawMessage `graphql:"playerDetails(endTime: 999999999999)"`
@@ -82,6 +88,8 @@ func QueryReport(graphqlClient *graphql_lib.Client, ctx context.Context, code st
 	result.StartTime = convertFloatTime(float64(query.ReportData.Report.StartTime))
 	result.EndTime = convertFloatTime(float64(query.ReportData.Report.EndTime))
 	result.Zone = string(query.ReportData.Report.Zone.Name)
+	result.GuildId = int32(query.ReportData.Report.Guild.Id)
+	result.GuildName = string(query.ReportData.Report.Guild.Name)
 
 	var playerDetailsResponse playerDetailsResponse
 	err = json.Unmarshal(query.ReportData.Report.PlayerDetails, &playerDetailsResponse)
