@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	testFetchReportCode = "3BybK6aLdgtMJrGN"
+	testFetchReportCode = "q1ZxbNt74DB6zFr2"
 )
 
 func TestFetchReport(t *testing.T) {

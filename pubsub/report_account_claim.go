@@ -47,35 +47,37 @@ func ParseReportAccountClaimEvent(e event.Event) (ReportAccountClaimEvent, error
 func PublishReportAccountClaimEvent(
 	pubsubClient *google_pubsub.Client,
 	ctx context.Context,
-	reportCode string,
 	claimedPlayerId int64,
 	claimedAccountName string,
+	reportCodes []string,
 ) error {
 	claimedPlayerIdString := strconv.FormatInt(claimedPlayerId, 10)
 
 	var waitGroup sync.WaitGroup
 	var totalErrors uint64
 	reportTopic := pubsubClient.Topic(reportAccountClaimTopicId)
-	result := reportTopic.Publish(ctx, &google_pubsub.Message{
-		Attributes: map[string]string{
-			"report_code":          reportCode,
-			"claimed_player_id":    claimedPlayerIdString,
-			"claimed_account_name": claimedAccountName,
-		},
-	})
+	for _, reportCode := range reportCodes {
+		result := reportTopic.Publish(ctx, &google_pubsub.Message{
+			Attributes: map[string]string{
+				"report_code":          reportCode,
+				"claimed_player_id":    claimedPlayerIdString,
+				"claimed_account_name": claimedAccountName,
+			},
+		})
 
-	waitGroup.Add(1)
-	go func(res *google_pubsub.PublishResult) {
-		defer waitGroup.Done()
-		// The Get method blocks until a server-generated ID or
-		// an error is returned for the published message.
-		_, err := res.Get(ctx)
-		if err != nil {
-			log.Printf("Failed to publish: %v", err)
-			atomic.AddUint64(&totalErrors, 1)
-			return
-		}
-	}(result)
+		waitGroup.Add(1)
+		go func(res *google_pubsub.PublishResult) {
+			defer waitGroup.Done()
+			// The Get method blocks until a server-generated ID or
+			// an error is returned for the published message.
+			_, err := res.Get(ctx)
+			if err != nil {
+				log.Printf("Failed to publish: %v", err)
+				atomic.AddUint64(&totalErrors, 1)
+				return
+			}
+		}(result)
+	}
 	waitGroup.Wait()
 
 	if totalErrors > 0 {

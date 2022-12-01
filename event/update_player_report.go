@@ -59,7 +59,7 @@ func UpdatePlayerReport(
 		}
 	}
 	if thisReportPlayer == nil {
-		return fmt.Errorf("Player %v not found in report: %+v", playerReportEvent.PlayerId, report)
+		return fmt.Errorf("player %v not found in report: %+v", playerReportEvent.PlayerId, report)
 	}
 
 	playerKey := google_datastore.IDKey("player", playerReportEvent.PlayerId, nil)
@@ -214,9 +214,9 @@ func UpdatePlayerReport(
 		err = pubsub.PublishReportAccountClaimEvent(
 			pubsubClient,
 			ctx,
-			playerReportEvent.Code,
 			playerReportEvent.PlayerId,
 			player.Account,
+			[]string{playerReportEvent.Code},
 		)
 		if err != nil {
 			return fmt.Errorf(
@@ -227,9 +227,16 @@ func UpdatePlayerReport(
 		}
 	}
 
-	log.Printf("Processed report %v for player %v and broadcast account to %v new coraiders.\n",
-		playerReportEvent.Code,
-		playerReportEvent.PlayerId,
-		len(newCoraiderIds))
+	if onlyUpdateReports {
+		log.Printf("Updated report %v for player %v and broadcast account to %v new coraiders.\n",
+			playerReportEvent.Code,
+			playerReportEvent.PlayerId,
+			len(newCoraiderIds))
+	} else {
+		log.Printf("Processed report %v for player %v and broadcast account to %v new coraiders.\n",
+			playerReportEvent.Code,
+			playerReportEvent.PlayerId,
+			len(newCoraiderIds))
+	}
 	return nil
 }
