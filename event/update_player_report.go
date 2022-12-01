@@ -93,7 +93,9 @@ func UpdatePlayerReport(
 	onlyUpdateReports := false
 	for playerIndex, playerReport := range player.Reports {
 		if playerReport.Code == playerReportEvent.Code {
-			if playerReport.GuildId == report.GuildId && playerReport.GuildName == report.GuildName {
+			if playerReport.Version == report.Version &&
+				playerReport.GuildId == report.GuildId &&
+				playerReport.GuildName == report.GuildName {
 				tx.Rollback()
 				log.Printf("Report %v already reported for player %v.\n", playerReportEvent.Code, playerReportEvent.PlayerId)
 				return nil // no error
@@ -102,6 +104,7 @@ func UpdatePlayerReport(
 			// This report's version got updated and we need to fill in the guild ID and name.
 			player.Reports[playerIndex].GuildId = report.GuildId
 			player.Reports[playerIndex].GuildName = report.GuildName
+			player.Reports[playerIndex].Version = report.Version
 			onlyUpdateReports = true
 		}
 	}
@@ -130,6 +133,7 @@ func UpdatePlayerReport(
 			Spec:      thisReportPlayer.Spec,
 			Role:      thisReportPlayer.Role,
 			Duplicate: duplicate,
+			Version:   report.Version,
 		})
 		sort.SliceStable(player.Reports, func(i int, j int) bool {
 			return player.Reports[i].StartTime.After(player.Reports[j].StartTime)

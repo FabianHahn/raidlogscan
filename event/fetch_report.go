@@ -34,7 +34,7 @@ func FetchReport(
 	if err != nil && err != google_datastore.ErrNoSuchEntity {
 		return fmt.Errorf("datastore query for %v failed: %v", code, err.Error())
 	} else if err == nil {
-		if report.Version >= 3 {
+		if report.Version >= 4 {
 			log.Printf("Report %v already processed.\n", code)
 			return nil
 		}
@@ -59,7 +59,7 @@ func FetchReport(
 	report.GuildId = reportQueryResult.GuildId
 	report.GuildName = reportQueryResult.GuildName
 	report.PlayerAccounts = oldVersionPlayerAccounts
-	report.Version = 3
+	report.Version = 4
 
 	for _, player := range reportQueryResult.Players.Tanks {
 		report.Players = append(report.Players, datastore.ReportPlayer{

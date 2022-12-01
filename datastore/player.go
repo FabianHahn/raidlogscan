@@ -15,6 +15,7 @@ type PlayerReport struct {
 	Spec      string
 	Role      string
 	Duplicate bool
+	Version   int32
 }
 
 type PlayerCoraider struct {
