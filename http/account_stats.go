@@ -3,10 +3,12 @@ package http
 import (
 	"context"
 	"fmt"
+	"io"
 	go_http "net/http"
 	"sort"
 
 	google_datastore "cloud.google.com/go/datastore"
+	"github.com/FabianHahn/raidlogscan/cache"
 	"github.com/FabianHahn/raidlogscan/datastore"
 	"github.com/FabianHahn/raidlogscan/html"
 	"google.golang.org/api/iterator"
@@ -21,11 +23,24 @@ func AccountStats(
 	oauth2LoginUrl string,
 ) {
 	ctx := context.Background()
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 
 	accountName := r.URL.Query().Get("account_name")
 	if accountName == "" {
 		w.WriteHeader(go_http.StatusBadRequest)
 		fmt.Fprintf(w, "No account_name specified")
+		return
+	}
+
+	accountStatsKey := google_datastore.NameKey("account_stats", accountName, nil)
+	var accountStats datastore.AccountStats
+	err := datastoreClient.Get(ctx, accountStatsKey, &accountStats)
+	if err != nil && err != google_datastore.ErrNoSuchEntity {
+		w.WriteHeader(go_http.StatusInternalServerError)
+		fmt.Fprintf(w, "Datastore query failed: %v", err)
+		return
+	} else if err == nil {
+		cache.WriteCompressedResponseOrDecompress(w, r, accountStats.HtmlGzip)
 		return
 	}
 
@@ -128,17 +143,14 @@ func AccountStats(
 		return leaderboard[i].Count > leaderboard[j].Count
 	})
 
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	err := htmlRenderer.RenderAccountStats(
-		w,
-		accountName,
-		numRaids,
-		charactersSlice,
-		leaderboard,
-		playerStatsUrl,
-		oauth2LoginUrl)
-	if err != nil {
-		fmt.Fprintf(w, "failed to render template: %v", err)
-		return
-	}
+	cache.CacheAndOutputAccountStats(w, r, datastoreClient, ctx, accountName, func(wr io.Writer) error {
+		return htmlRenderer.RenderAccountStats(
+			wr,
+			accountName,
+			numRaids,
+			charactersSlice,
+			leaderboard,
+			playerStatsUrl,
+			oauth2LoginUrl)
+	})
 }

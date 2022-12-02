@@ -8,6 +8,7 @@ import (
 
 	google_datastore "cloud.google.com/go/datastore"
 	google_pubsub "cloud.google.com/go/pubsub"
+	"github.com/FabianHahn/raidlogscan/cache"
 	"github.com/FabianHahn/raidlogscan/datastore"
 	"github.com/FabianHahn/raidlogscan/pubsub"
 	google_event "github.com/cloudevents/sdk-go/v2/event"
@@ -228,6 +229,13 @@ func UpdatePlayerReport(
 				playerReportEvent.Code,
 				playerReportEvent.PlayerId,
 				err.Error())
+		}
+	}
+
+	if player.Account != "" {
+		err = cache.InvalidateAccountStatsCache(ctx, datastoreClient, player.Account)
+		if err != nil {
+			return fmt.Errorf("failed to invalidate account stats cache for %v: %v", player.Account, err)
 		}
 	}
 

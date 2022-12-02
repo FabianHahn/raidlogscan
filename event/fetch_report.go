@@ -101,7 +101,7 @@ func FetchReport(
 	if report.GuildId != 0 {
 		err = cache.InvalidateGuildStatsCache(ctx, datastoreClient, report.GuildId)
 		if err != nil {
-			return fmt.Errorf("failed to invalidate guild stats cache: %v", report.GuildId)
+			return fmt.Errorf("failed to invalidate guild stats cache for %v: %v", report.GuildId, err)
 		}
 	}
 
