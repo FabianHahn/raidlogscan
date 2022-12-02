@@ -3,11 +3,13 @@ package http
 import (
 	"context"
 	"fmt"
+	"io"
 	go_http "net/http"
 	"sort"
 	"strconv"
 
 	google_datastore "cloud.google.com/go/datastore"
+	"github.com/FabianHahn/raidlogscan/cache"
 	"github.com/FabianHahn/raidlogscan/datastore"
 	"github.com/FabianHahn/raidlogscan/html"
 	"google.golang.org/api/iterator"
@@ -23,6 +25,7 @@ func GuildStats(
 	playerStatsUrl string,
 ) {
 	ctx := context.Background()
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 
 	guildId64, err := strconv.ParseInt(r.URL.Query().Get("guild_id"), 10, 64)
 	if err != nil {
@@ -31,6 +34,18 @@ func GuildStats(
 		return
 	}
 	guildId := int32(guildId64)
+
+	guildStatsKey := google_datastore.IDKey("guild_stats", guildId64, nil)
+	var guildStats datastore.GuildStats
+	err = datastoreClient.Get(ctx, guildStatsKey, &guildStats)
+	if err != nil && err != google_datastore.ErrNoSuchEntity {
+		w.WriteHeader(go_http.StatusInternalServerError)
+		fmt.Fprintf(w, "Datastore query failed: %v", err)
+		return
+	} else if err == nil {
+		cache.WriteCompressedResponseOrDecompress(w, r, guildStats.HtmlGzip)
+		return
+	}
 
 	guildName := ""
 	raids := []html.GuildRaid{}
@@ -117,18 +132,15 @@ func GuildStats(
 		return leaderboard[i].Count > leaderboard[j].Count
 	})
 
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	err = htmlRenderer.RenderGuildStats(
-		w,
-		guildId,
-		guildName,
-		leaderboard,
-		raids,
-		scanGuildReportsUrl,
-		accountStatsUrl,
-		playerStatsUrl)
-	if err != nil {
-		fmt.Fprintf(w, "failed to render template: %v", err)
-		return
-	}
+	cache.CacheAndOutputGuildStats(w, r, datastoreClient, ctx, guildId, guildName, func(wr io.Writer) error {
+		return htmlRenderer.RenderGuildStats(
+			wr,
+			guildId,
+			guildName,
+			leaderboard,
+			raids,
+			scanGuildReportsUrl,
+			accountStatsUrl,
+			playerStatsUrl)
+	})
 }

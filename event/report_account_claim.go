@@ -6,6 +6,7 @@ import (
 	"log"
 
 	google_datastore "cloud.google.com/go/datastore"
+	"github.com/FabianHahn/raidlogscan/cache"
 	"github.com/FabianHahn/raidlogscan/datastore"
 	"github.com/FabianHahn/raidlogscan/pubsub"
 	google_event "github.com/cloudevents/sdk-go/v2/event"
@@ -68,6 +69,13 @@ func ReportAccountClaim(ctx context.Context, e google_event.Event, datastoreClie
 			reportAccountClaimEvent.ClaimedPlayerId,
 			reportAccountClaimEvent.ReportCode,
 			err.Error())
+	}
+
+	if report.GuildId != 0 {
+		err = cache.InvalidateGuildStatsCache(ctx, datastoreClient, report.GuildId)
+		if err != nil {
+			return fmt.Errorf("failed to invalidate guild stats cache: %v", report.GuildId)
+		}
 	}
 
 	log.Printf(

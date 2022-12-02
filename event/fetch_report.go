@@ -9,6 +9,7 @@ import (
 	google_datastore "cloud.google.com/go/datastore"
 	google_pubsub "cloud.google.com/go/pubsub"
 	graphql_lib "github.com/FabianHahn/graphql"
+	"github.com/FabianHahn/raidlogscan/cache"
 	"github.com/FabianHahn/raidlogscan/datastore"
 	"github.com/FabianHahn/raidlogscan/graphql"
 	"github.com/FabianHahn/raidlogscan/pubsub"
@@ -95,6 +96,13 @@ func FetchReport(
 	_, err = datastoreClient.Put(ctx, key, &report)
 	if err != nil {
 		return fmt.Errorf("datastore write for %s failed: %v", code, err.Error())
+	}
+
+	if report.GuildId != 0 {
+		err = cache.InvalidateGuildStatsCache(ctx, datastoreClient, report.GuildId)
+		if err != nil {
+			return fmt.Errorf("failed to invalidate guild stats cache: %v", report.GuildId)
+		}
 	}
 
 	playerIds := []int64{}
