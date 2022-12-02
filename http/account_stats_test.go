@@ -21,8 +21,9 @@ func TestAccountStats(t *testing.T) {
 	htmlRenderer := html.CreateRendererOrDie()
 	datastoreClient := datastore.CreateDatastoreClientOrDie()
 	playerStatsUrl := "http://example.com/playerstats"
+	guildStatsUrl := "http://example.com/guildstats"
 	oauth2LoginUrl := "http://example.com/oauth2login"
-	AccountStats(rr, req, htmlRenderer, datastoreClient, playerStatsUrl, oauth2LoginUrl)
+	AccountStats(rr, req, htmlRenderer, datastoreClient, playerStatsUrl, guildStatsUrl, oauth2LoginUrl)
 
 	t.Log(rr.Body.String())
 }

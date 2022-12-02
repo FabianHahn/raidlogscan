@@ -56,7 +56,7 @@ func init() {
 	})
 
 	functions.HTTP("AccountStats", func(w go_http.ResponseWriter, r *go_http.Request) {
-		http.AccountStats(w, r, htmlRenderer, datastoreClient, playerStatsUrl, oauth2LoginUrl)
+		http.AccountStats(w, r, htmlRenderer, datastoreClient, playerStatsUrl, guildStatsUrl, oauth2LoginUrl)
 	})
 	functions.HTTP("ClaimAccount", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.ClaimAccount(w, r, datastoreClient, pubsubClient, playerStatsUrl, accountStatsUrl)

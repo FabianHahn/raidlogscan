@@ -55,6 +55,22 @@ const accountStatsHtmlTemplate = `{{define "body"}}
 {{- end}}
   </table>
 </div>
+
+<div class="column">
+  <h2>Guilds / Raid Teams</h2>
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Count</th>
+    </tr>
+{{- range .GuildLeaderboard}}
+    <tr>
+      <td><a href="{{$.GuildStatsUrl}}?guild_id={{.GuildId}}">{{.GuildName}}</a></td>
+      <td>{{.Count}}</td>
+    </tr>
+{{- end}}
+  </table>
+</div>
 {{- end}}`
 
 func (r *Renderer) RenderAccountStats(
@@ -63,26 +79,32 @@ func (r *Renderer) RenderAccountStats(
 	numRaids int,
 	characters []datastore.PlayerCoraider,
 	leaderboard []LeaderboardEntry,
+	guildLeaderboard []GuildLeaderboardEntry,
 	playerStatsUrl string,
+	guildStatsUrl string,
 	oauth2LoginUrl string,
 ) error {
 	return r.templates[accountStatsTemplateName].ExecuteTemplate(wr, baseDefinitionName, struct {
-		Title          string
-		AccountName    string
-		NumRaids       int
-		NumCharacters  int
-		Characters     []datastore.PlayerCoraider
-		Leaderboard    []LeaderboardEntry
-		PlayerStatsUrl string
-		Oauth2LoginUrl string
+		Title            string
+		AccountName      string
+		NumRaids         int
+		NumCharacters    int
+		Characters       []datastore.PlayerCoraider
+		Leaderboard      []LeaderboardEntry
+		GuildLeaderboard []GuildLeaderboardEntry
+		PlayerStatsUrl   string
+		GuildStatsUrl    string
+		Oauth2LoginUrl   string
 	}{
-		Title:          fmt.Sprintf("#%v", accountName),
-		AccountName:    accountName,
-		NumRaids:       numRaids,
-		NumCharacters:  len(characters),
-		Characters:     characters,
-		Leaderboard:    leaderboard,
-		PlayerStatsUrl: playerStatsUrl,
-		Oauth2LoginUrl: oauth2LoginUrl,
+		Title:            fmt.Sprintf("#%v", accountName),
+		AccountName:      accountName,
+		NumRaids:         numRaids,
+		NumCharacters:    len(characters),
+		Characters:       characters,
+		Leaderboard:      leaderboard,
+		GuildLeaderboard: guildLeaderboard,
+		PlayerStatsUrl:   playerStatsUrl,
+		GuildStatsUrl:    guildStatsUrl,
+		Oauth2LoginUrl:   oauth2LoginUrl,
 	})
 }

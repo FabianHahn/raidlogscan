@@ -20,6 +20,7 @@ func AccountStats(
 	htmlRenderer *html.Renderer,
 	datastoreClient *google_datastore.Client,
 	playerStatsUrl string,
+	guildStatsUrl string,
 	oauth2LoginUrl string,
 ) {
 	ctx := context.Background()
@@ -46,6 +47,7 @@ func AccountStats(
 
 	characters := map[int64]datastore.PlayerCoraider{}
 	coraiders := map[int64]datastore.PlayerCoraider{}
+	guilds := map[int32]html.GuildLeaderboardEntry{}
 	coaccounts := map[int64]string{}
 	query := google_datastore.NewQuery("player").FilterField("Account", "=", accountName)
 	responseIter := datastoreClient.Run(ctx, query)
@@ -72,6 +74,19 @@ func AccountStats(
 		for _, playerReport := range player.Reports {
 			if !playerReport.Duplicate {
 				character.Count++
+			}
+
+			if playerReport.GuildId != 0 {
+				if entry, ok := guilds[playerReport.GuildId]; ok {
+					entry.Count++
+					guilds[playerReport.GuildId] = entry
+				} else {
+					guilds[playerReport.GuildId] = html.GuildLeaderboardEntry{
+						Count:     1,
+						GuildId:   playerReport.GuildId,
+						GuildName: playerReport.GuildName,
+					}
+				}
 			}
 		}
 
@@ -143,6 +158,14 @@ func AccountStats(
 		return leaderboard[i].Count > leaderboard[j].Count
 	})
 
+	guildLeaderboard := []html.GuildLeaderboardEntry{}
+	for _, guild := range guilds {
+		guildLeaderboard = append(guildLeaderboard, guild)
+	}
+	sort.SliceStable(guildLeaderboard, func(i int, j int) bool {
+		return guildLeaderboard[i].Count > guildLeaderboard[j].Count
+	})
+
 	cache.CacheAndOutputAccountStats(w, r, datastoreClient, ctx, accountName, func(wr io.Writer) error {
 		return htmlRenderer.RenderAccountStats(
 			wr,
@@ -150,7 +173,9 @@ func AccountStats(
 			numRaids,
 			charactersSlice,
 			leaderboard,
+			guildLeaderboard,
 			playerStatsUrl,
+			guildStatsUrl,
 			oauth2LoginUrl)
 	})
 }
