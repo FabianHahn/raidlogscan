@@ -64,7 +64,14 @@ func GuildStats(
 			playerAccounts[playerAccount.PlayerId] = playerAccount.Name
 		}
 
+		reportPlayers := map[int64]struct{}{}
 		for _, player := range report.Players {
+			// Don't count duplicate players in a report multiple times
+			if _, ok := reportPlayers[player.Id]; ok {
+				continue
+			}
+			reportPlayers[player.Id] = struct{}{}
+
 			if accountName, ok := playerAccounts[player.Id]; ok {
 				accountCounts[accountName]++
 				continue

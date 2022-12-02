@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	testStatsGuildId = "635711"
+	testStatsGuildId = "687460"
 )
 
 func TestGuildStats(t *testing.T) {
