@@ -23,7 +23,16 @@ func TestGuildStats(t *testing.T) {
 	scanGuildReportsUrl := "http://example.com/scanguildreports"
 	accountStatsUrl := "http://example.com/accountstats"
 	playerStatsUrl := "http://example.com/playerstats"
-	GuildStats(rr, req, htmlRenderer, datastoreClient, scanGuildReportsUrl, accountStatsUrl, playerStatsUrl)
+	oauth2LoginUrl := "http://example.com/oauth2login"
+	GuildStats(
+		rr,
+		req,
+		htmlRenderer,
+		datastoreClient,
+		scanGuildReportsUrl,
+		accountStatsUrl,
+		playerStatsUrl,
+		oauth2LoginUrl)
 
 	t.Log(rr.Body.String())
 }

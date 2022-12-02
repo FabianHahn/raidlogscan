@@ -15,12 +15,23 @@ const playerStatsHtmlTemplate = `{{define "body"}}
 {{- if .HasAccount}}
   <b>Account</b>: <a href="{{.AccountStatsUrl}}?account_name={{.Player.Account}}">#{{.Player.Account}}</a><br>
 {{- end}}
+  <br>
 
   <form action="{{.ClaimAccountUrl}}" method="get">
     <input type="hidden" id="player_id" name="player_id" value="{{.PlayerId}}">
-    <label for="account_name"><b>Change account name:</b></label><br>
+    <label for="account_name">
+{{- if .HasAccount}}
+      Incorrect account name? <b>Reassign:</b>
+{{- else}}
+      <b>Assign account name:</b>
+{{- end}}
+    </label><br>
     <input type="text" id="account_name" name="account_name">&nbsp;
+{{- if .HasAccount}}
     <input type="submit" value="Change">
+{{- else}}
+    <input type="submit" value="Assign">
+{{- end}}
   </form>
 </div>
 
@@ -62,7 +73,7 @@ const playerStatsHtmlTemplate = `{{define "body"}}
   {{- if not .Duplicate}}
     <tr>
       <td>{{.StartTime.Format "Mon, 02 Jan 2006 15:04:05 MST"}}</td>
-      <td><a href="https://classic.warcraftlogs.com/reports/{{.Code}}">{{.Title}}</a></td>
+      <td><a href="https://classic.warcraftlogs.com/reports/{{.Code}}" target="_blank">{{.Title}}</a></td>
       <td>
     {{- if ne .GuildId 0}}
         <a href="{{$.GuildStatsUrl}}?guild_id={{.GuildId}}">{{.GuildName}}</a></td>
@@ -86,6 +97,7 @@ func (r *Renderer) RenderPlayerStats(
 	accountStatsUrl string,
 	guildStatsUrl string,
 	claimAccountUrl string,
+	oauth2LoginUrl string,
 ) error {
 	return r.templates[playerStatsTemplateName].ExecuteTemplate(wr, baseDefinitionName, struct {
 		Title           string
@@ -96,6 +108,7 @@ func (r *Renderer) RenderPlayerStats(
 		AccountStatsUrl string
 		GuildStatsUrl   string
 		ClaimAccountUrl string
+		Oauth2LoginUrl  string
 	}{
 		Title:           fmt.Sprintf("%v-%v (%v)", player.Name, player.Server, player.Class),
 		PlayerId:        playerId,
@@ -105,5 +118,6 @@ func (r *Renderer) RenderPlayerStats(
 		AccountStatsUrl: accountStatsUrl,
 		GuildStatsUrl:   guildStatsUrl,
 		ClaimAccountUrl: claimAccountUrl,
+		Oauth2LoginUrl:  oauth2LoginUrl,
 	})
 }

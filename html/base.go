@@ -31,9 +31,20 @@ const baseHtmlTemplate = `{{define "base"}}
     .column {
         float: left;
     }
+
+    .topright {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        padding: 5px;
+    }
   </style>
 </head>
 <body>
+<div class="topright">
+    Missing logs? Scan your own:<br>
+    <a href="{{.Oauth2LoginUrl}}" target="_blank">Log into Warcraft Logs Account</a>
+</div>
 {{- template "body" .}}
 </body>
 </html>

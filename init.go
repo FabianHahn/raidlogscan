@@ -62,10 +62,10 @@ func init() {
 		http.ClaimAccount(w, r, datastoreClient, pubsubClient, playerStatsUrl, accountStatsUrl)
 	})
 	functions.HTTP("PlayerStats", func(w go_http.ResponseWriter, r *go_http.Request) {
-		http.PlayerStats(w, r, htmlRenderer, datastoreClient, accountStatsUrl, guildStatsUrl, claimAccountUrl)
+		http.PlayerStats(w, r, htmlRenderer, datastoreClient, accountStatsUrl, guildStatsUrl, claimAccountUrl, oauth2LoginUrl)
 	})
 	functions.HTTP("GuildStats", func(w go_http.ResponseWriter, r *go_http.Request) {
-		http.GuildStats(w, r, htmlRenderer, datastoreClient, scanGuildReportsUrl, accountStatsUrl, playerStatsUrl)
+		http.GuildStats(w, r, htmlRenderer, datastoreClient, scanGuildReportsUrl, accountStatsUrl, playerStatsUrl, oauth2LoginUrl)
 	})
 	functions.HTTP("Oauth2Login", func(w go_http.ResponseWriter, r *go_http.Request) {
 		http.Oauth2Login(w, r, oauth2UserConfig)

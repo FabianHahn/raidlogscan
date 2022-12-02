@@ -8,17 +8,18 @@ import (
 
 const guildStatsHtmlTemplate = `{{define "body"}}
 <h1>{{.GuildName}}</h1>
-<b>Wacraft Logs</b>: <a href="https://classic.warcraftlogs.com/guild/id/{{.GuildId}}">link</a><br>
+<b>Wacraft Logs</b>: <a href="https://classic.warcraftlogs.com/guild/id/{{.GuildId}}" target="_blank">link</a><br>
 <b>Raiders</b>: {{len .Leaderboard}}<br>
 <b>Raids</b>: {{len .Raids}}<br>
-<a href="{{.ScanGuildReportsUrl}}?guild_id={{.GuildId}}">Scan guild raids</a><br>
+<br>
+<a href="{{.ScanGuildReportsUrl}}?guild_id={{.GuildId}}">Scan latest logs for this guild / raid team.</a><br>
 
 <div class="column">
   <h2>Raiders</h2>
   <table>
     <tr>
       <th>Name</th>
-      <th>Count</th>
+      <th>Raids</th>
     </tr>
 {{- range .Leaderboard}}
   {{- if .IsAccount}}
@@ -48,7 +49,7 @@ const guildStatsHtmlTemplate = `{{define "body"}}
 {{- range .Raids}}
     <tr>
       <td>{{.StartTime.Format "Mon, 02 Jan 2006 15:04:05 MST"}}</td>
-      <td><a href="https://classic.warcraftlogs.com/reports/{{.Code}}">{{.Title}}</a></td>
+      <td><a href="https://classic.warcraftlogs.com/reports/{{.Code}}" target="_blank">{{.Title}}</a></td>
       <td>{{.Zone}}</td>
       <td>{{.NumPlayers}}</td>
     </tr>
@@ -74,6 +75,7 @@ func (r *Renderer) RenderGuildStats(
 	scanGuildReportsUrl string,
 	accountStatsUrl string,
 	playerStatsUrl string,
+	oauth2LoginUrl string,
 ) error {
 	return r.templates[guildStatsTemplateName].ExecuteTemplate(wr, baseDefinitionName, struct {
 		Title               string
@@ -84,6 +86,7 @@ func (r *Renderer) RenderGuildStats(
 		ScanGuildReportsUrl string
 		AccountStatsUrl     string
 		PlayerStatsUrl      string
+		Oauth2LoginUrl      string
 	}{
 		Title:               fmt.Sprintf("%v", guildName),
 		GuildId:             guildId,
@@ -93,5 +96,6 @@ func (r *Renderer) RenderGuildStats(
 		ScanGuildReportsUrl: scanGuildReportsUrl,
 		AccountStatsUrl:     accountStatsUrl,
 		PlayerStatsUrl:      playerStatsUrl,
+		Oauth2LoginUrl:      oauth2LoginUrl,
 	})
 }

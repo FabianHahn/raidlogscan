@@ -20,6 +20,7 @@ func PlayerStats(
 	accountStatsUrl string,
 	guildStatsUrl string,
 	claimAccountUrl string,
+	oauth2LoginUrl string,
 ) {
 	ctx := context.Background()
 	playerId, err := strconv.ParseInt(r.URL.Query().Get("player_id"), 10, 64)
@@ -110,7 +111,8 @@ func PlayerStats(
 		leaderboard,
 		accountStatsUrl,
 		guildStatsUrl,
-		claimAccountUrl)
+		claimAccountUrl,
+		oauth2LoginUrl)
 	if err != nil {
 		fmt.Fprintf(w, "failed to render template: %v", err)
 		return

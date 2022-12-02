@@ -23,6 +23,7 @@ func GuildStats(
 	scanGuildReportsUrl string,
 	accountStatsUrl string,
 	playerStatsUrl string,
+	oauth2LoginUrl string,
 ) {
 	ctx := context.Background()
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
@@ -141,6 +142,7 @@ func GuildStats(
 			raids,
 			scanGuildReportsUrl,
 			accountStatsUrl,
-			playerStatsUrl)
+			playerStatsUrl,
+			oauth2LoginUrl)
 	})
 }

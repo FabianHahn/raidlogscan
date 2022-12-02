@@ -11,14 +11,13 @@ const accountStatsHtmlTemplate = `{{define "body"}}
 <h1>#{{.AccountName}}</h1>
 <b>Raids</b>: {{.NumRaids}}<br>
 <b>Characters</b>: {{.NumCharacters}}<br>
-<a href="{{.Oauth2LoginUrl}}">Log into Warcraft Logs Account</a><br>
 
 <div class="column">
   <h2>Coraiders</h2>
   <table>
     <tr>
       <th>Name</th>
-      <th>Count</th>
+      <th>Raids</th>
     </tr>
 {{- range .Leaderboard}}
   {{- if .IsAccount}}
@@ -43,7 +42,7 @@ const accountStatsHtmlTemplate = `{{define "body"}}
       <th>Name</th>
       <th>Server</th>
       <th>Class</th>
-      <th>Count</th>
+      <th>Raids</th>
     </tr>
 {{- range .Characters}}
     <tr>
@@ -54,6 +53,15 @@ const accountStatsHtmlTemplate = `{{define "body"}}
     </tr>
 {{- end}}
   </table>
+  <br>
+  Incorrect character assignment? Click<br>
+  on the character name and assign them<br>
+  a different account name.<br>
+  <br>
+  Missing character? Find them in a<br>
+  raiders list, click on the character<br>
+  name and assign them this account<br>
+  name ({{.AccountName}}).
 </div>
 
 <div class="column">
@@ -61,7 +69,7 @@ const accountStatsHtmlTemplate = `{{define "body"}}
   <table>
     <tr>
       <th>Name</th>
-      <th>Count</th>
+      <th>Raids</th>
     </tr>
 {{- range .GuildLeaderboard}}
     <tr>
