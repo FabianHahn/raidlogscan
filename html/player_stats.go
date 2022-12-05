@@ -64,7 +64,7 @@ const playerStatsHtmlTemplate = `{{define "body"}}
     <tr>
       <th>Date</th>
       <th>Title</th>
-      <th>Guild</th>
+      <th>Guild / Raid team</th>
       <th>Zone</th>
       <th>Role</th>
       <th>Spec</th>
