@@ -25,7 +25,7 @@ func ReportAccountClaim(ctx context.Context, e google_event.Event, datastoreClie
 	}
 
 	var report datastore.Report
-	err = datastoreClient.Get(ctx, reportKey, &report)
+	err = tx.Get(reportKey, &report)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf(
